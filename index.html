@@ -1063,6 +1063,8 @@ function renderRoutines(){
 function toggleRoutineNotify(i){const l=loadRoutines();if(!l[i])return;
   l[i].notify=(l[i].notify===false)?true:false;saveRoutines(l);renderRoutines();}
 async function testNotif(){
+ try{
+  alert('테스트 시작! (이 창이 보이면 버튼은 정상)');
   const diag=[];
   diag.push('프로토콜: '+location.protocol);
   diag.push('Notification 지원: '+('Notification' in window));
@@ -1077,36 +1079,31 @@ async function testNotif(){
   if(perm!=='granted'){ perm=await Notification.requestPermission(); diag.push('요청 후 권한: '+perm); }
   if(perm!=='granted'){ alert('알림 권한이 없어요.\n\n'+diag.join('\n')); return; }
 
-  // 방법 1: Service Worker 알림 (설치 앱에서 표준)
   let swResult='시도 안 함';
   try{
     if('serviceWorker' in navigator){
-      const reg=await navigator.serviceWorker.getRegistration() || await navigator.serviceWorker.ready;
+      let reg=await navigator.serviceWorker.getRegistration();
+      if(!reg){ reg=await navigator.serviceWorker.ready; }
       diag.push('SW 등록됨: '+(!!reg));
       if(reg){
         await reg.showNotification('테스트 알림 ✿',{body:'SW 방식으로 보냈어요!',icon:notifIcon(),tag:'diary-test',renotify:true});
         swResult='성공';
       }else{ swResult='SW 없음'; }
     }
-  }catch(e){ swResult='실패: '+e.message; }
+  }catch(e){ swResult='실패: '+(e&&e.message); }
   diag.push('SW 알림: '+swResult);
 
-  // 방법 2: 직접 Notification (SW 실패 시 폴백)
   let directResult='시도 안 함';
   if(swResult!=='성공'){
     try{ new Notification('테스트 알림 ✿',{body:'직접 방식으로 보냈어요!',icon:notifIcon()}); directResult='성공'; }
-    catch(e){ directResult='실패: '+e.message; }
+    catch(e){ directResult='실패: '+(e&&e.message); }
     diag.push('직접 알림: '+directResult);
   }
 
-  // 결과 안내
-  if(swResult==='성공' || directResult==='성공'){
-    setTimeout(()=>{
-      alert('알림을 보냈어요! 화면에 떴나요?\n\n안 떴다면 아래 정보를 보여주세요:\n\n'+diag.join('\n'));
-    },1500);
-  }else{
-    alert('알림 전송에 실패했어요. 아래 정보를 보여주세요:\n\n'+diag.join('\n'));
-  }
+  alert('결과:\n\n'+diag.join('\n')+'\n\n알림이 화면에 떴는지 확인해주세요!');
+ }catch(err){
+  alert('에러 발생: '+(err&&err.message?err.message:err)+'\n\n이 내용을 보여주세요!');
+ }
 }
 function addRoutine(){const l=loadRoutines();l.push({id:'r'+Date.now(),name:'',time:'',dows:[]});saveRoutines(l);renderRoutines();}
 function setRoutine(i,k,v){const l=loadRoutines();if(l[i]){l[i][k]=v;saveRoutines(l);}}
