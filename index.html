@@ -4,6 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>my diary ✿</title>
+<meta name="theme-color" content="#141414">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="my diary">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Gaegu:wght@400;700&family=Gamja+Flower&family=Jua&family=Do+Hyeon&family=Poor+Story&family=Single+Day&family=Hi+Melody&family=Cute+Font&family=Dongle:wght@400;700&family=Nanum+Pen+Script&family=East+Sea+Dokdo&display=swap" rel="stylesheet">
@@ -436,6 +441,7 @@ body.mobile .recap-spread::before{display:none;}
   </div>
 
   <div id="topbar">
+    <button class="jelly" id="installBtn" onclick="installApp()" style="display:none">⬇ Install</button>
     <button class="jelly" id="loginBtn" onclick="fbLogin()">Sign in</button>
     <button class="jelly" onclick="toggleFonts()">Aa Font</button>
     <button class="jelly round" onclick="closeBook()" title="cover">✕</button>
@@ -1221,6 +1227,93 @@ function setupAuth(){
   go(DB.load('lastSec','calendar'));
 
   setupAuth();
+})();
+
+/* ===================== PWA (설치 가능하게) ===================== */
+(function setupPWA(){
+  // 하트 아이콘을 SVG data URL로 생성 (검정 배경 + 흰 글로우 하트)
+  function iconDataUrl(size){
+    const svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="${size}" height="${size}">
+      <rect width="100" height="100" rx="22" fill="#141414"/>
+      <path fill="#fff" d="M50 80 C32 66 15 53 15 37 C15 25 24 16 35 16 C42 16 47 20 50 25 C53 20 58 16 65 16 C76 16 85 25 85 37 C85 53 68 66 50 80 Z"/>
+      <ellipse cx="35" cy="32" rx="6" ry="8" fill="#141414" opacity="0.25" transform="rotate(-25 35 32)"/>
+    </svg>`;
+    return 'data:image/svg+xml;base64,'+btoa(unescape(encodeURIComponent(svg)));
+  }
+
+  // manifest를 동적으로 만들어 연결 (별도 파일 없이 단일 HTML 유지)
+  const manifest={
+    name:'my diary',
+    short_name:'my diary',
+    start_url:'.',
+    scope:'.',
+    display:'standalone',
+    orientation:'any',
+    background_color:'#f4f4f4',
+    theme_color:'#141414',
+    icons:[
+      {src:iconDataUrl(192),sizes:'192x192',type:'image/svg+xml',purpose:'any maskable'},
+      {src:iconDataUrl(512),sizes:'512x512',type:'image/svg+xml',purpose:'any maskable'}
+    ]
+  };
+  try{
+    const blob=new Blob([JSON.stringify(manifest)],{type:'application/manifest+json'});
+    const url=URL.createObjectURL(blob);
+    const link=document.createElement('link');
+    link.rel='manifest';link.href=url;
+    document.head.appendChild(link);
+    // apple touch icon도 연결
+    const ai=document.createElement('link');
+    ai.rel='apple-touch-icon';ai.href=iconDataUrl(192);
+    document.head.appendChild(ai);
+    // 파비콘
+    const fav=document.createElement('link');
+    fav.rel='icon';fav.href=iconDataUrl(64);
+    document.head.appendChild(fav);
+  }catch(e){ console.warn('manifest setup skipped',e); }
+
+  // Service Worker 등록 (https에서만 동작 · 오프라인에서도 앱이 열리게)
+  if('serviceWorker' in navigator && location.protocol==='https:'){
+    const swCode=`
+      const CACHE='diary-v1';
+      self.addEventListener('install', e=>{ self.skipWaiting(); });
+      self.addEventListener('activate', e=>{ e.waitUntil(self.clients.claim()); });
+      self.addEventListener('fetch', e=>{
+        // 네트워크 우선, 실패하면 캐시 (오프라인 대비)
+        e.respondWith(
+          fetch(e.request).then(res=>{
+            const copy=res.clone();
+            caches.open(CACHE).then(c=>c.put(e.request,copy)).catch(()=>{});
+            return res;
+          }).catch(()=> caches.match(e.request))
+        );
+      });
+    `;
+    try{
+      const swBlob=new Blob([swCode],{type:'text/javascript'});
+      const swUrl=URL.createObjectURL(swBlob);
+      navigator.serviceWorker.register(swUrl).catch(err=>console.warn('SW register failed',err));
+    }catch(e){ console.warn('SW setup skipped',e); }
+  }
+
+  // 설치 버튼: 브라우저가 설치 가능 판단하면 표시
+  let deferredPrompt=null;
+  window.addEventListener('beforeinstallprompt', e=>{
+    e.preventDefault(); deferredPrompt=e;
+    const btn=document.getElementById('installBtn');
+    if(btn) btn.style.display='';
+  });
+  window.installApp=function(){
+    if(!deferredPrompt){
+      alert('이미 설치했거나, 브라우저 메뉴(⋮)의 "앱 설치 / 홈 화면에 추가"로도 설치할 수 있어요.');
+      return;
+    }
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.finally(()=>{ deferredPrompt=null;
+      const btn=document.getElementById('installBtn'); if(btn) btn.style.display='none'; });
+  };
+  // 이미 설치된 상태면 버튼 숨김
+  window.addEventListener('appinstalled', ()=>{ const btn=document.getElementById('installBtn'); if(btn) btn.style.display='none'; });
 })();
 </script>
 </body>
