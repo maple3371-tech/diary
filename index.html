@@ -305,6 +305,53 @@ body.mobile #mmWrap.show-editor #mmList{display:none;}
 body.mobile #mmWrap:not(.show-editor) #mmEditor{display:none;}
 body:not(.mobile) #mmListBtn{display:none;}
 
+/* Diary */
+.dy-mood-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;}
+.dy-mood{width:44px;height:44px;border:2.5px solid var(--ink);border-radius:12px;background:#fff;cursor:pointer;
+  font-size:24px;display:grid;place-items:center;box-shadow:0 4px 0 rgba(0,0,0,.1);transition:transform .06s,box-shadow .06s;}
+.dy-mood:active{transform:translateY(3px);box-shadow:none;}
+.dy-mood.sel{background:var(--ink);transform:translateY(2px);box-shadow:0 2px 0 rgba(0,0,0,.1);}
+.dy-mood.view{cursor:default;}
+.dy-section{border:2.5px solid var(--ink);border-radius:16px;padding:14px;margin-bottom:14px;box-shadow:0 5px 0 rgba(0,0,0,.08);}
+.dy-section h3{margin:0 0 10px;font-size:18px;display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.dy-label{font-size:14px;color:#666;margin:10px 0 4px;}
+.dy-text{width:100%;min-height:100px;border:2px solid var(--ink);border-radius:12px;padding:12px;font-size:17px;
+  outline:none;resize:vertical;background:transparent;color:var(--ink);line-height:1.6;font-family:var(--hand-font);}
+.dy-photos{display:flex;gap:8px;overflow-x:auto;overflow-y:hidden;padding:8px 0;}
+.dy-photos:empty{display:none;}
+.dy-photo{position:relative;flex:0 0 auto;height:130px;border:2px solid var(--ink);border-radius:12px;overflow:hidden;box-shadow:0 3px 0 rgba(0,0,0,.1);}
+.dy-photo img{height:100%;width:auto;display:block;}
+.dy-photo .rm{position:absolute;top:4px;right:4px;width:22px;height:22px;border-radius:50%;border:2px solid var(--ink);
+  background:#fff;cursor:pointer;font-size:12px;display:grid;place-items:center;box-shadow:0 2px 0 rgba(0,0,0,.15);}
+.dy-videos{display:flex;flex-direction:column;gap:6px;margin-top:6px;}
+.dy-video{display:flex;align-items:center;gap:8px;}
+.dy-video a{flex:1;min-width:0;font-size:15px;color:#0057c8;text-decoration:underline;word-break:break-all;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.dy-tools{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;}
+.dy-addblock{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 14px;}
+
+/* 롤/야구 일지 공통 입력칸 */
+.jd-in{border:none;border-bottom:1.5px dashed #bbb;outline:none;font-size:16px;background:transparent;color:var(--ink);font-family:var(--hand-font);padding:2px 3px;}
+.jd-grid{display:grid;gap:6px 10px;}
+.jd-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.jd-row .k{font-size:14px;color:#555;min-width:56px;flex:0 0 auto;}
+/* 롤 세트 */
+.lol-set{border:2px solid var(--ink);border-radius:12px;padding:10px;margin-bottom:10px;box-shadow:0 3px 0 rgba(0,0,0,.08);}
+.lol-set .seth{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+.lol-pickban{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.lol-team h4{margin:0 0 4px;font-size:14px;}
+.lol-slots{display:flex;flex-direction:column;gap:4px;}
+.lol-slots .jd-in{width:100%;}
+.pb-label{font-size:12px;color:#888;margin:6px 0 2px;}
+/* 야구 이닝 */
+.bb-innings{display:grid;grid-template-columns:repeat(6,1fr);gap:5px;margin:8px 0;}
+.bb-inn{border:2px solid var(--ink);border-radius:9px;padding:4px 2px;text-align:center;}
+.bb-inn .n{font-size:11px;color:#888;}
+.bb-inn input{width:100%;border:none;outline:none;text-align:center;font-size:16px;background:transparent;color:var(--ink);font-family:var(--hand-font);}
+.bb-lineup{display:flex;flex-direction:column;gap:4px;}
+.bb-lineup .jd-row .k{min-width:44px;}
+body.mobile .lol-pickban{grid-template-columns:1fr;}
+body.mobile .bb-innings{grid-template-columns:repeat(4,1fr);}
+
 body.mobile #book{width:96vw;height:90vh;border-radius:18px;}
 /* 모바일: 상단바가 다이어리와 안 겹치게 — 버튼은 위에 고정, 다이어리는 그 아래로 */
 body.mobile #topbar{top:10px;right:10px;gap:7px;flex-wrap:wrap;justify-content:flex-end;max-width:74vw;}
@@ -345,6 +392,7 @@ body.mobile .recap-spread::before{display:none;}
       <div class="tab" data-sec="todo" onclick="go('todo')">To-do</div>
       <div class="tab" data-sec="planner" onclick="go('planner')">Planner</div>
       <div class="tab" data-sec="memo" onclick="go('memo')">Memo</div>
+      <div class="tab" data-sec="diary" onclick="go('diary')">Diary</div>
     </nav>
 
     <div id="pages">
@@ -449,6 +497,20 @@ body.mobile .recap-spread::before{display:none;}
           <div id="mmList"></div>
           <div id="mmEditor" style="flex:1;min-width:0;display:flex;flex-direction:column;"></div>
         </div>
+      </section>
+
+      <!-- DIARY -->
+      <section class="page" data-sec="diary">
+        <div class="pl-head">
+          <h2 style="margin:0"><span class="naru" style="width:26px;height:26px"></span> Diary</h2>
+          <div class="pl-nav">
+            <button class="jelly sm" onclick="dyMove(-1)">◀</button>
+            <input type="date" id="dyDate" onchange="dyLoad()" style="font-size:16px;border:2px solid var(--ink);border-radius:10px;padding:5px 8px;">
+            <button class="jelly sm" onclick="dyMove(1)">▶</button>
+            <button class="jelly sm" id="dyModeBtn" onclick="dyToggleMode()">✎ 수정</button>
+          </div>
+        </div>
+        <div id="dyBody" style="flex:1;min-height:0;overflow:auto;"></div>
       </section>
     </div>
   </div>
@@ -1275,6 +1337,239 @@ function mmAddPhotos(files){
 }
 function mmRmPhoto(i){const l=mmLoad();const n=l.find(x=>x.id===mmSel);if(!n)return;n.photos.splice(i,1);n.updated=Date.now();mmSave(l);mmRender();}
 
+/* ===================== Diary ===================== */
+const MOODS=['😊','🥰','😌','😐','😢','😡','😴','🤒','🥳','😭'];
+let dyMode='view'; // 'view' | 'edit'
+function dyKey(){ return 'diary_'+document.getElementById('dyDate').value; }
+function dyDefault(){ return {mood:'', text:'', photos:[], videos:[], lol:null, baseball:null}; }
+function dyData(){ return DB.load(dyKey(), null); }
+function dySave(d){ DB.save(dyKey(), d); }
+
+function dyMove(dir){const el=document.getElementById('dyDate');const d=new Date(el.value);d.setDate(d.getDate()+dir);
+  el.value=d.toISOString().slice(0,10);dyLoad();}
+function dyToggleMode(){ dyMode = (dyMode==='view')?'edit':'view'; dyRender(); }
+function dyLoad(){
+  DB.save('dyLastDate', document.getElementById('dyDate').value);
+  dyRender();
+}
+function dyRender(){
+  document.getElementById('dyModeBtn').textContent = (dyMode==='edit')?'👁 보기':'✎ 수정';
+  const d = dyData() || dyDefault();
+  document.getElementById('dyBody').innerHTML = (dyMode==='edit') ? dyEditHTML(d) : dyViewHTML(d);
+}
+
+/* ---------- 보기 모드 ---------- */
+function dyViewHTML(d){
+  const hasContent = d.mood||d.text||(d.photos&&d.photos.length)||(d.videos&&d.videos.length)||d.lol||d.baseball;
+  if(!hasContent){
+    return `<div style="text-align:center;color:#aaa;font-size:18px;padding:40px 20px">
+      아직 이 날의 일기가 없어요.<br>오른쪽 위 <b>✎ 수정</b>을 눌러 작성해보세요!</div>`;
+  }
+  let h='';
+  if(d.mood) h+=`<div class="dy-mood-row"><div class="dy-mood view sel">${d.mood}</div>
+    <span style="font-size:15px;color:#888">오늘의 기분</span></div>`;
+  if(d.photos&&d.photos.length){
+    h+=`<div class="dy-photos">${d.photos.map(p=>`<div class="dy-photo"><img src="${p}"></div>`).join('')}</div>`;
+  }
+  if(d.text) h+=`<div class="dy-section" style="white-space:pre-wrap;font-size:17px;line-height:1.7">${d.text.replace(/</g,'&lt;')}</div>`;
+  if(d.videos&&d.videos.length){
+    h+=`<div class="dy-section"><h3>🎬 영상</h3><div class="dy-videos">${d.videos.map(v=>`<div class="dy-video"><a href="${v}" target="_blank">${v.replace(/</g,'&lt;')}</a></div>`).join('')}</div></div>`;
+  }
+  if(d.lol) h+=dyLolView(d.lol);
+  if(d.baseball) h+=dyBaseballView(d.baseball);
+  return h;
+}
+
+/* ---------- 수정 모드 ---------- */
+function dyEditHTML(d){
+  let h='';
+  // 기분
+  h+=`<div class="dy-label">오늘의 기분</div><div class="dy-mood-row">
+    ${MOODS.map(m=>`<div class="dy-mood ${d.mood===m?'sel':''}" onclick="dySetMood('${m}')">${m}</div>`).join('')}</div>`;
+  // 사진
+  h+=`<div class="dy-label">사진 (여러 장 · 가로 스크롤)</div>
+    <div class="dy-photos">${(d.photos||[]).map((p,i)=>`<div class="dy-photo"><img src="${p}"><div class="rm" onclick="dyRmPhoto(${i})">✕</div></div>`).join('')}</div>
+    <div class="dy-tools"><button class="jelly sm" onclick="document.getElementById('dyFile').click()">+ 사진</button></div>
+    <input type="file" id="dyFile" accept="image/*" multiple style="display:none" onchange="dyAddPhotos(this.files)">`;
+  // 내용
+  h+=`<div class="dy-label">오늘의 이야기</div>
+    <textarea class="dy-text" id="dyText" placeholder="오늘 하루는 어땠나요?" oninput="dySetText(this.value)">${(d.text||'').replace(/</g,'&lt;')}</textarea>`;
+  // 영상 링크
+  h+=`<div class="dy-label">영상 링크 (유튜브 등)</div>
+    <div class="dy-videos">${(d.videos||[]).map((v,i)=>`<div class="dy-video"><input class="jd-in" style="flex:1" value="${(v||'').replace(/"/g,'&quot;')}" onchange="dySetVideo(${i},this.value)"><button class="dday-del" onclick="dyRmVideo(${i})">✕</button></div>`).join('')}</div>
+    <div class="dy-tools"><button class="jelly sm" onclick="dyAddVideo()">+ 영상 링크</button></div>`;
+  // 블록 추가
+  h+=`<div class="dy-label" style="margin-top:16px">추가 블록</div><div class="dy-addblock">
+    ${d.lol?'':`<button class="jelly sm" onclick="dyAddLol()">+ 롤 일지</button>`}
+    ${d.baseball?'':`<button class="jelly sm" onclick="dyAddBaseball()">+ 야구 일지</button>`}
+  </div>`;
+  if(d.lol) h+=dyLolEdit(d.lol);
+  if(d.baseball) h+=dyBaseballEdit(d.baseball);
+  return h;
+}
+
+/* ---------- 기분/사진/영상/텍스트 ---------- */
+function dyGet(){ return dyData() || dyDefault(); }
+function dySetMood(m){ const d=dyGet(); d.mood=(d.mood===m?'':m); dySave(d); dyRender(); }
+function dySetText(v){ const d=dyGet(); d.text=v; dySave(d); }
+function dyAddVideo(){ const d=dyGet(); d.videos=d.videos||[]; d.videos.push(''); dySave(d); dyRender(); }
+function dySetVideo(i,v){ const d=dyGet(); d.videos[i]=v; dySave(d); }
+function dyRmVideo(i){ const d=dyGet(); d.videos.splice(i,1); dySave(d); dyRender(); }
+function dyRmPhoto(i){ const d=dyGet(); d.photos.splice(i,1); dySave(d); dyRender(); }
+function dyAddPhotos(files){
+  const d=dyGet(); d.photos=d.photos||[]; let pending=files.length;
+  [...files].forEach(f=>{
+    const reader=new FileReader();
+    reader.onload=e=>{
+      const img=new Image();
+      img.onload=()=>{
+        const max=1000;let{width:w,height:h}=img;
+        if(w>max||h>max){const r=Math.min(max/w,max/h);w=w*r|0;h=h*r|0;}
+        const cv=document.createElement('canvas');cv.width=w;cv.height=h;
+        cv.getContext('2d').drawImage(img,0,0,w,h);
+        d.photos.push(cv.toDataURL('image/jpeg',0.8));
+        if(--pending===0){ dySave(d); dyRender(); }
+      };
+      img.src=e.target.result;
+    };
+    reader.readAsDataURL(f);
+  });
+}
+
+/* ---------- 롤 일지 ---------- */
+function newLolSet(n){ return {name:'세트 '+n, myPick:['','','','',''], myBan:['','','','',''], oppPick:['','','','',''], oppBan:['','','','',''], score:''}; }
+function dyAddLol(){ const d=dyGet(); d.lol={myTeam:'', oppTeam:'', sets:[newLolSet(1)], totalScore:'', mvp:{top:'',jungle:'',mid:'',adc:'',support:''}}; dySave(d); dyRender(); }
+function dyDelLol(){ if(!confirm('롤 일지를 삭제할까요?'))return; const d=dyGet(); d.lol=null; dySave(d); dyRender(); }
+function lolAddSet(){ const d=dyGet(); d.lol.sets.push(newLolSet(d.lol.sets.length+1)); dySave(d); dyRender(); }
+function lolDelSet(si){ const d=dyGet(); d.lol.sets.splice(si,1); dySave(d); dyRender(); }
+function lolSet(si,team,kind,idx,v){ const d=dyGet(); d.lol.sets[si][team+kind][idx]=v; dySave(d); }
+function lolSetName(si,v){ const d=dyGet(); d.lol.sets[si].name=v; dySave(d); }
+function lolSetScore(si,v){ const d=dyGet(); d.lol.sets[si].score=v; dySave(d); }
+function lolTotal(v){ const d=dyGet(); d.lol.totalScore=v; dySave(d); }
+function lolMvp(role,v){ const d=dyGet(); d.lol.mvp[role]=v; dySave(d); }
+function lolTeam(k,v){ const d=dyGet(); d.lol[k]=v; dySave(d); }
+
+function dyLolEdit(lol){
+  const setHTML=(s,si)=>{
+    const slots=(team,kind)=>s[team+kind].map((v,i)=>`<input class="jd-in" value="${(v||'').replace(/"/g,'&quot;')}" placeholder="${i+1}" onchange="lolSet(${si},'${team}','${kind}',${i},this.value)">`).join('');
+    return `<div class="lol-set">
+      <div class="seth">
+        <input class="jd-in" style="font-size:16px" value="${(s.name||'').replace(/"/g,'&quot;')}" onchange="lolSetName(${si},this.value)">
+        <div style="display:flex;align-items:center;gap:6px">
+          <span class="k">스코어</span><input class="jd-in" style="width:70px" value="${(s.score||'').replace(/"/g,'&quot;')}" placeholder="예: 1-0" onchange="lolSetScore(${si},this.value)">
+          ${lol.sets.length>1?`<button class="dday-del" onclick="lolDelSet(${si})">✕</button>`:''}
+        </div>
+      </div>
+      <div class="lol-pickban">
+        <div class="lol-team"><h4>${(lol.myTeam||'우리팀').replace(/</g,'&lt;')}</h4>
+          <div class="pb-label">PICK</div><div class="lol-slots">${slots('my','Pick')}</div>
+          <div class="pb-label">BAN</div><div class="lol-slots">${slots('my','Ban')}</div>
+        </div>
+        <div class="lol-team"><h4>${(lol.oppTeam||'상대팀').replace(/</g,'&lt;')}</h4>
+          <div class="pb-label">PICK</div><div class="lol-slots">${slots('opp','Pick')}</div>
+          <div class="pb-label">BAN</div><div class="lol-slots">${slots('opp','Ban')}</div>
+        </div>
+      </div>
+    </div>`;
+  };
+  const roles=[['top','탑'],['jungle','정글'],['mid','미드'],['adc','원딜'],['support','서폿']];
+  return `<div class="dy-section">
+    <h3>🎮 롤 일지 <button class="dday-del" onclick="dyDelLol()">삭제</button></h3>
+    <div class="jd-row"><span class="k">우리 팀</span><input class="jd-in" style="flex:1" value="${(lol.myTeam||'').replace(/"/g,'&quot;')}" placeholder="우리 팀 이름" onchange="lolTeam('myTeam',this.value)"></div>
+    <div class="jd-row" style="margin-bottom:8px"><span class="k">상대 팀</span><input class="jd-in" style="flex:1" value="${(lol.oppTeam||'').replace(/"/g,'&quot;')}" placeholder="상대 팀 이름" onchange="lolTeam('oppTeam',this.value)"></div>
+    ${lol.sets.map(setHTML).join('')}
+    <button class="jelly sm" onclick="lolAddSet()">+ 세트 추가</button>
+    <div class="jd-row" style="margin-top:12px"><span class="k">총 스코어</span>
+      <input class="jd-in" style="width:90px" value="${(lol.totalScore||'').replace(/"/g,'&quot;')}" placeholder="예: 2-1" onchange="lolTotal(this.value)"></div>
+    <div class="dy-label" style="margin-top:8px">오늘의 MVP</div>
+    <div class="jd-grid">
+      ${roles.map(([k,label])=>`<div class="jd-row"><span class="k">${label}</span>
+        <input class="jd-in" style="flex:1" value="${(lol.mvp[k]||'').replace(/"/g,'&quot;')}" onchange="lolMvp('${k}',this.value)"></div>`).join('')}
+    </div>
+  </div>`;
+}
+function dyLolView(lol){
+  const line=(arr)=>arr.filter(x=>x).join(', ')||'-';
+  const myName=(lol.myTeam||'우리팀').replace(/</g,'&lt;'), oppName=(lol.oppTeam||'상대팀').replace(/</g,'&lt;');
+  const setHTML=(s)=>`<div class="lol-set">
+    <div class="seth"><b>${(s.name||'').replace(/</g,'&lt;')}</b><span>${s.score?('스코어 '+s.score):''}</span></div>
+    <div class="lol-pickban">
+      <div class="lol-team"><h4>${myName}</h4><div style="font-size:14px">픽: ${line(s.myPick)}<br>밴: ${line(s.myBan)}</div></div>
+      <div class="lol-team"><h4>${oppName}</h4><div style="font-size:14px">픽: ${line(s.oppPick)}<br>밴: ${line(s.oppBan)}</div></div>
+    </div></div>`;
+  const roles=[['top','탑'],['jungle','정글'],['mid','미드'],['adc','원딜'],['support','서폿']];
+  const mvp=roles.map(([k,l])=>lol.mvp[k]?`${l} ${lol.mvp[k]}`:null).filter(x=>x).join(' · ')||'-';
+  return `<div class="dy-section"><h3>🎮 롤 일지</h3>
+    <div style="font-size:15px;margin-bottom:6px">${myName} <b>vs</b> ${oppName}</div>
+    ${lol.sets.map(setHTML).join('')}
+    <div style="margin-top:8px;font-size:16px">총 스코어: <b>${lol.totalScore||'-'}</b></div>
+    <div style="margin-top:4px;font-size:15px">MVP: ${mvp}</div></div>`;
+}
+
+/* ---------- 야구 일지 ---------- */
+function dyAddBaseball(){ const d=dyGet(); d.baseball={
+  myTeam:'', oppTeam:'', home:true, // 홈이면 true
+  innings:Array(9).fill(null).map(()=>({my:'',opp:''})), // 기본 9이닝
+  my:{ pitcher:'', lineup:['','','','','','','','',''] },   // 우리팀 선발투수 + 1~9번
+  opp:{ pitcher:'', lineup:['','','','','','','','',''] },  // 상대팀 선발투수 + 1~9번
+  finalScore:'', winPitcher:'' }; dySave(d); dyRender(); }
+function dyDelBaseball(){ if(!confirm('야구 일지를 삭제할까요?'))return; const d=dyGet(); d.baseball=null; dySave(d); dyRender(); }
+function bbInning(i,team,v){ const d=dyGet(); d.baseball.innings[i][team]=v; dySave(d); }
+function bbField(k,v){ const d=dyGet(); d.baseball[k]=v; dySave(d); }
+function bbTeamField(side,k,v){ const d=dyGet(); d.baseball[side][k]=v; dySave(d); }
+function bbLineup(side,i,v){ const d=dyGet(); d.baseball[side].lineup[i]=v; dySave(d); }
+function bbSetHome(isHome){ const d=dyGet(); d.baseball.home=isHome; dySave(d); dyRender(); }
+function bbAddInning(){ const d=dyGet(); if(d.baseball.innings.length<15){ d.baseball.innings.push({my:'',opp:''}); dySave(d); dyRender(); } }
+function bbDelInning(){ const d=dyGet(); if(d.baseball.innings.length>9){ d.baseball.innings.pop(); dySave(d); dyRender(); } }
+
+function dyBaseballEdit(bb){
+  const myName=(bb.myTeam||'우리팀'), oppName=(bb.oppTeam||'상대팀');
+  const innHTML=bb.innings.map((inn,i)=>`<div class="bb-inn"><div class="n">${i+1}회</div>
+    <input value="${(inn.my||'').replace(/"/g,'&quot;')}" placeholder="${myName.slice(0,2)}" onchange="bbInning(${i},'my',this.value)">
+    <input value="${(inn.opp||'').replace(/"/g,'&quot;')}" placeholder="${oppName.slice(0,2)}" onchange="bbInning(${i},'opp',this.value)"></div>`).join('');
+  const lineupBlock=(side,name)=>`
+    <div class="dy-label">${name.replace(/</g,'&lt;')} 선발 라인업</div>
+    <div class="bb-lineup">
+      <div class="jd-row"><span class="k">투수</span><input class="jd-in" style="flex:1" value="${(bb[side].pitcher||'').replace(/"/g,'&quot;')}" onchange="bbTeamField('${side}','pitcher',this.value)"></div>
+      ${bb[side].lineup.map((p,i)=>`<div class="jd-row"><span class="k">${i+1}번</span><input class="jd-in" style="flex:1" value="${(p||'').replace(/"/g,'&quot;')}" onchange="bbLineup('${side}',${i},this.value)"></div>`).join('')}
+    </div>`;
+  return `<div class="dy-section">
+    <h3>⚾ 야구 일지 <button class="dday-del" onclick="dyDelBaseball()">삭제</button></h3>
+    <div class="jd-row"><span class="k">우리 팀</span><input class="jd-in" style="flex:1" value="${(bb.myTeam||'').replace(/"/g,'&quot;')}" placeholder="우리 팀 이름" onchange="bbField('myTeam',this.value)"></div>
+    <div class="jd-row"><span class="k">상대 팀</span><input class="jd-in" style="flex:1" value="${(bb.oppTeam||'').replace(/"/g,'&quot;')}" placeholder="상대 팀 이름" onchange="bbField('oppTeam',this.value)"></div>
+    <div class="jd-row" style="margin:8px 0"><span class="k">경기</span>
+      <button class="jelly sm" style="${bb.home?'':'opacity:.5'}" onclick="bbSetHome(true)">🏠 홈</button>
+      <button class="jelly sm" style="${bb.home?'opacity:.5':''}" onclick="bbSetHome(false)">✈ 원정</button>
+    </div>
+    <div class="dy-label" style="display:flex;justify-content:space-between;align-items:center">
+      <span>이닝별 점수 (위:${myName.slice(0,3)} / 아래:${oppName.slice(0,3)})</span>
+      <span><button class="jelly sm" onclick="bbAddInning()">+회</button> <button class="jelly sm" onclick="bbDelInning()">−회</button></span>
+    </div>
+    <div class="bb-innings">${innHTML}</div>
+    ${lineupBlock('my', myName)}
+    ${lineupBlock('opp', oppName)}
+    <div class="jd-row" style="margin-top:10px"><span class="k">최종 스코어</span><input class="jd-in" style="width:110px" value="${(bb.finalScore||'').replace(/"/g,'&quot;')}" placeholder="예: 5-3" onchange="bbField('finalScore',this.value)"></div>
+    <div class="jd-row"><span class="k">승리 투수</span><input class="jd-in" style="flex:1" value="${(bb.winPitcher||'').replace(/"/g,'&quot;')}" onchange="bbField('winPitcher',this.value)"></div>
+  </div>`;
+}
+function dyBaseballView(bb){
+  const myName=(bb.myTeam||'우리팀').replace(/</g,'&lt;'), oppName=(bb.oppTeam||'상대팀').replace(/</g,'&lt;');
+  const innCells=bb.innings.map((inn,i)=>`<div class="bb-inn"><div class="n">${i+1}</div>
+    <div style="font-size:15px">${inn.my||'-'}</div><div style="font-size:15px;color:#888">${inn.opp||'-'}</div></div>`).join('');
+  const lineupView=(side,name)=>{
+    const lu=bb[side].lineup.map((p,i)=>p?`${i+1}. ${p}`:null).filter(x=>x).join(' / ')||'-';
+    return `<div style="margin-top:8px;font-size:15px"><b>${name}</b> · 선발투수: ${bb[side].pitcher||'-'}<br>라인업: ${lu}</div>`;
+  };
+  return `<div class="dy-section"><h3>⚾ 야구 일지</h3>
+    <div style="font-size:15px">${myName} <b>vs</b> ${oppName} · ${bb.home?'🏠 홈':'✈ 원정'}</div>
+    <div class="dy-label">이닝별 (위:${myName.slice(0,3)} / 아래:${oppName.slice(0,3)})</div>
+    <div class="bb-innings">${innCells}</div>
+    ${lineupView('my', myName)}
+    ${lineupView('opp', oppName)}
+    <div style="font-size:17px;margin-top:8px">최종 스코어: <b>${bb.finalScore||'-'}</b></div>
+    <div style="font-size:15px;margin-top:2px">승리 투수: ${bb.winPitcher||'-'}</div></div>`;
+}
+
 /* ===================== 초기화 ===================== */
 function renderAll(){
   // 데이터 소스가 바뀌었을 때 모든 화면 다시 그리기
@@ -1287,6 +1582,7 @@ function renderAll(){
   renderCal();
   tdLoad();
   mmRender();
+  dyRender();
 }
 
 /* ===== Firebase 로그인 ===== */
@@ -1355,6 +1651,9 @@ function setupAuth(){
   buildDow();renderCal();
 
   mmRender();
+
+  document.getElementById('dyDate').value=DB.load('dyLastDate',new Date().toISOString().slice(0,10));
+  dyRender();
 
   go(DB.load('lastSec','calendar'));
 
