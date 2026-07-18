@@ -265,8 +265,12 @@ body:not(.mobile) .recap-spread::before{content:"";position:absolute;left:50%;to
 /* 루틴 모달 */
 .routine-row{border:2px solid var(--ink);border-radius:12px;padding:8px 10px;margin-bottom:8px;box-shadow:0 3px 0 rgba(0,0,0,.08);}
 .routine-row .rr-top{display:flex;align-items:center;gap:8px;}
+.rbell{flex:0 0 auto;width:32px;height:32px;border:2px solid var(--ink);border-radius:9px;background:#fff;cursor:pointer;
+  font-size:15px;display:grid;place-items:center;box-shadow:0 3px 0 rgba(0,0,0,.1);padding:0;}
+.rbell.on{background:var(--ink);}
+.rbell:active{transform:translateY(2px);box-shadow:none;}
 .routine-row input.rname{flex:1;min-width:0;border:none;border-bottom:1.5px dashed #bbb;outline:none;font-size:16px;background:transparent;color:var(--ink);}
-.routine-row input.rtime{width:60px;flex:0 0 auto;border:none;border-bottom:1.5px dashed #bbb;outline:none;font-size:13px;text-align:center;background:transparent;color:var(--ink);}
+.routine-row input.rtime{width:96px;flex:0 0 auto;border:none;border-bottom:1.5px dashed #bbb;outline:none;font-size:14px;text-align:center;background:transparent;color:var(--ink);}
 .dow-pick{display:flex;gap:5px;margin-top:8px;flex-wrap:wrap;}
 .dow-btn{width:32px;height:32px;border:2px solid var(--ink);border-radius:9px;background:#fff;cursor:pointer;font-size:13px;
   display:grid;place-items:center;box-shadow:0 3px 0 rgba(0,0,0,.1);}
@@ -517,7 +521,7 @@ body.mobile .recap-spread::before{display:none;}
     <h3><span class="naru" style="width:20px;height:20px"></span> Repeating routines</h3>
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px">
       <div style="font-size:14px;color:#777">매주 정한 요일에 자동으로 뜨는 할 일이에요</div>
-      <button class="jelly sm" id="notifBtn" onclick="toggleNotif()">🔕 알림 끄짐</button>
+      <button class="jelly sm" id="notifBtn" onclick="toggleNotif()">🔕 알림 꺼짐</button>
     </div>
     <div id="routineList"></div>
     <button class="jelly sm" style="margin-top:8px" onclick="addRoutine()">+ 루틴 추가</button>
@@ -1038,20 +1042,28 @@ function openRoutines(){renderRoutines();updateNotifBtn();document.getElementByI
 function closeRoutines(){document.getElementById('routineModal').classList.remove('show');tdLoad();}
 function renderRoutines(){
   const l=loadRoutines();
-  document.getElementById('routineList').innerHTML=l.map((r,i)=>`
+  document.getElementById('routineList').innerHTML=l.map((r,i)=>{
+    const bellOn = r.notify!==false; // 기본 켜짐
+    return `
     <div class="routine-row">
       <div class="rr-top">
+        <button class="rbell ${bellOn?'on':''}" onclick="toggleRoutineNotify(${i})" title="${bellOn?'알림 켜짐 (누르면 끄기)':'알림 꺼짐 (누르면 켜기)'}">${bellOn?'🔔':'🔕'}</button>
         <input class="rname" value="${(r.name||'').replace(/"/g,'&quot;')}" placeholder="루틴 이름" oninput="setRoutine(${i},'name',this.value)">
-        <input class="rtime" value="${r.time||''}" placeholder="시간" onchange="setRoutine(${i},'time',this.value)">
+        <input class="rtime" type="time" value="${r.time||''}" onchange="setRoutine(${i},'time',this.value)">
+        <button class="td-timebtn" style="width:26px;height:26px" onclick="clearRoutineTime(${i})" title="시간 지우기">✕</button>
         <button class="dday-del" onclick="delRoutine(${i})">✕</button>
       </div>
       <div class="dow-pick">
         ${DOW_KR.map((d,di)=>`<div class="dow-btn ${r.dows&&r.dows.includes(di)?'on':''}" onclick="toggleDow(${i},${di})">${d}</div>`).join('')}
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
+function toggleRoutineNotify(i){const l=loadRoutines();if(!l[i])return;
+  l[i].notify=(l[i].notify===false)?true:false;saveRoutines(l);renderRoutines();}
 function addRoutine(){const l=loadRoutines();l.push({id:'r'+Date.now(),name:'',time:'',dows:[]});saveRoutines(l);renderRoutines();}
 function setRoutine(i,k,v){const l=loadRoutines();if(l[i]){l[i][k]=v;saveRoutines(l);}}
+function clearRoutineTime(i){const l=loadRoutines();if(l[i]){l[i].time='';saveRoutines(l);renderRoutines();}}
 function delRoutine(i){const l=loadRoutines();l.splice(i,1);saveRoutines(l);renderRoutines();}
 function toggleDow(i,di){const l=loadRoutines();if(!l[i])return;l[i].dows=l[i].dows||[];
   const p=l[i].dows.indexOf(di);if(p>=0)l[i].dows.splice(p,1);else l[i].dows.push(di);saveRoutines(l);renderRoutines();}
@@ -1062,7 +1074,7 @@ function setNotif(on){ DB.save('notifOn', on); updateNotifBtn(); }
 function updateNotifBtn(){
   const btn=document.getElementById('notifBtn'); if(!btn)return;
   const on=notifEnabled() && ('Notification' in window) && Notification.permission==='granted';
-  btn.textContent = on ? '🔔 알림 켜짐' : '🔕 알림 끄짐';
+  btn.textContent = on ? '🔔 알림 켜짐' : '🔕 알림 꺼짐';
 }
 async function toggleNotif(){
   if(!('Notification' in window)){ alert('이 브라우저는 알림을 지원하지 않아요.'); return; }
@@ -1104,7 +1116,7 @@ function checkRoutineAlarms(){
   const now=new Date();
   const dow=now.getDay();
   const hhmm=String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
-  const routines=loadRoutines().filter(r=>r.time && r.dows && r.dows.includes(dow));
+  const routines=loadRoutines().filter(r=>r.time && r.dows && r.dows.includes(dow) && r.notify!==false);
   if(!routines.length) return;
   let fired=DB.load(firedKey(), {});
   routines.forEach(r=>{
