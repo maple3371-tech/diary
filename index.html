@@ -1063,46 +1063,42 @@ function renderRoutines(){
 function toggleRoutineNotify(i){const l=loadRoutines();if(!l[i])return;
   l[i].notify=(l[i].notify===false)?true:false;saveRoutines(l);renderRoutines();}
 async function testNotif(){
+ let step='0';
  try{
-  alert('테스트 시작! (이 창이 보이면 버튼은 정상)');
-  const diag=[];
-  diag.push('프로토콜: '+location.protocol);
-  diag.push('Notification 지원: '+('Notification' in window));
-  diag.push('권한: '+(('Notification' in window)?Notification.permission:'없음'));
-  diag.push('SW 지원: '+('serviceWorker' in navigator));
+  step='1: 시작';
+  const perm0 = ('Notification' in window) ? Notification.permission : '미지원';
+  step='2: 권한확인='+perm0;
+  const icon = notifIcon();
+  step='3: 아이콘생성 완료 (길이 '+icon.length+')';
+  const hasSW = ('serviceWorker' in navigator);
+  step='4: SW지원='+hasSW;
 
-  if(!('Notification' in window)){ alert('이 브라우저는 알림을 지원하지 않아요.\n\n'+diag.join('\n')); return; }
-  if(location.protocol!=='https:' && location.hostname!=='localhost'){
-    alert('알림은 https://에서만 작동해요.\n\n'+diag.join('\n')); return;
-  }
-  let perm=Notification.permission;
-  if(perm!=='granted'){ perm=await Notification.requestPermission(); diag.push('요청 후 권한: '+perm); }
-  if(perm!=='granted'){ alert('알림 권한이 없어요.\n\n'+diag.join('\n')); return; }
-
-  let swResult='시도 안 함';
-  try{
-    if('serviceWorker' in navigator){
-      let reg=await navigator.serviceWorker.getRegistration();
-      if(!reg){ reg=await navigator.serviceWorker.ready; }
-      diag.push('SW 등록됨: '+(!!reg));
-      if(reg){
-        await reg.showNotification('테스트 알림 ✿',{body:'SW 방식으로 보냈어요!',icon:notifIcon(),tag:'diary-test',renotify:true});
-        swResult='성공';
-      }else{ swResult='SW 없음'; }
-    }
-  }catch(e){ swResult='실패: '+(e&&e.message); }
-  diag.push('SW 알림: '+swResult);
-
-  let directResult='시도 안 함';
-  if(swResult!=='성공'){
-    try{ new Notification('테스트 알림 ✿',{body:'직접 방식으로 보냈어요!',icon:notifIcon()}); directResult='성공'; }
-    catch(e){ directResult='실패: '+(e&&e.message); }
-    diag.push('직접 알림: '+directResult);
+  let reg=null;
+  if(hasSW){
+    step='5: SW 조회 시도';
+    reg = await navigator.serviceWorker.getRegistration();
+    step='6: getRegistration='+(!!reg);
   }
 
-  alert('결과:\n\n'+diag.join('\n')+'\n\n알림이 화면에 떴는지 확인해주세요!');
+  if(perm0!=='granted'){
+    alert('권한이 granted가 아니에요: '+perm0+'\n주소창 자물쇠 → 알림 → 허용으로 바꿔주세요.');
+    return;
+  }
+
+  let result='';
+  if(reg){
+    step='7: SW로 알림 시도';
+    await reg.showNotification('테스트 알림 ✿',{body:'SW 방식',icon:icon,tag:'t',renotify:true});
+    result='SW 알림 전송함';
+  }else{
+    step='7b: 직접 알림 시도';
+    new Notification('테스트 알림 ✿',{body:'직접 방식',icon:icon});
+    result='직접 알림 전송함';
+  }
+  step='8: 완료';
+  alert('결과: '+result+'\n\n알림이 화면에 떴나요?\n\n(SW등록: '+(!!reg)+', 권한: '+perm0+')');
  }catch(err){
-  alert('에러 발생: '+(err&&err.message?err.message:err)+'\n\n이 내용을 보여주세요!');
+  alert('❌ ['+step+'] 에서 멈춤\n\n에러: '+(err&&err.message?err.message:String(err)));
  }
 }
 function addRoutine(){const l=loadRoutines();l.push({id:'r'+Date.now(),name:'',time:'',dows:[]});saveRoutines(l);renderRoutines();}
