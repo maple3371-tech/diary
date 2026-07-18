@@ -1066,37 +1066,26 @@ async function testNotif(){
  let step='0';
  try{
   step='1: 시작';
-  const perm0 = ('Notification' in window) ? Notification.permission : '미지원';
-  step='2: 권한확인='+perm0;
-  const icon = notifIcon();
-  step='3: 아이콘생성 완료 (길이 '+icon.length+')';
-  const hasSW = ('serviceWorker' in navigator);
-  step='4: SW지원='+hasSW;
-
-  let reg=null;
-  if(hasSW){
-    step='5: SW 조회 시도';
-    reg = await navigator.serviceWorker.getRegistration();
-    step='6: getRegistration='+(!!reg);
-  }
-
+  if(!('Notification' in window)){ alert('이 브라우저는 알림 미지원'); return; }
+  const perm0 = Notification.permission;
   if(perm0!=='granted'){
-    alert('권한이 granted가 아니에요: '+perm0+'\n주소창 자물쇠 → 알림 → 허용으로 바꿔주세요.');
-    return;
+    const p=await Notification.requestPermission();
+    if(p!=='granted'){ alert('알림 권한이 없어요: '+p+'\n주소창 자물쇠 → 알림 → 허용'); return; }
   }
-
-  let result='';
-  if(reg){
-    step='7: SW로 알림 시도';
-    await reg.showNotification('테스트 알림 ✿',{body:'SW 방식',icon:icon,tag:'t',renotify:true});
-    result='SW 알림 전송함';
-  }else{
-    step='7b: 직접 알림 시도';
-    new Notification('테스트 알림 ✿',{body:'직접 방식',icon:icon});
-    result='직접 알림 전송함';
+  step='2: SW 지원 확인';
+  if(!('serviceWorker' in navigator)){ alert('이 브라우저는 Service Worker 미지원이라 알림을 쓸 수 없어요.'); return; }
+  step='3: SW 등록 확인';
+  let reg=await navigator.serviceWorker.getRegistration();
+  if(!reg){
+    step='3b: SW 없음 → 지금 등록 시도';
+    reg=await navigator.serviceWorker.register('sw.js');
   }
-  step='8: 완료';
-  alert('결과: '+result+'\n\n알림이 화면에 떴나요?\n\n(SW등록: '+(!!reg)+', 권한: '+perm0+')');
+  step='4: SW 활성화 대기';
+  reg=await navigator.serviceWorker.ready;  // 활성화될 때까지 대기
+  step='5: 알림 전송';
+  await reg.showNotification('테스트 알림 ✿',{body:'이렇게 보이면 성공!',icon:notifIcon(),tag:'t',renotify:true});
+  step='6: 완료';
+  alert('알림을 보냈어요! 화면 위쪽/알림바에 떴나요?\n\n(안 떴으면 이 문구를 알려주세요)');
  }catch(err){
   alert('❌ ['+step+'] 에서 멈춤\n\n에러: '+(err&&err.message?err.message:String(err)));
  }
@@ -1145,17 +1134,11 @@ async function toggleNotif(){
 function showNotif(title, body){
   return new Promise(async resolve=>{
     try{
-      if(navigator.serviceWorker && navigator.serviceWorker.ready){
-        const reg=await navigator.serviceWorker.ready;
-        await reg.showNotification(title,{body, icon: notifIcon(), badge: notifIcon(), tag:'diary-routine', renotify:true});
-        resolve(true); return;
-      }
-      new Notification(title,{body, icon: notifIcon()});
+      if(!('serviceWorker' in navigator)){ resolve(false); return; }
+      const reg=await navigator.serviceWorker.ready; // SW 활성화까지 대기
+      await reg.showNotification(title,{body, icon: notifIcon(), badge: notifIcon(), tag:'diary-routine', renotify:true});
       resolve(true);
-    }catch(e){
-      try{ new Notification(title,{body}); resolve(true); }
-      catch(_){ console.warn('notif failed',e); resolve(false); }
-    }
+    }catch(e){ console.warn('notif failed',e); resolve(false); }
   });
 }
 function notifIcon(){
@@ -1425,35 +1408,13 @@ function setupAuth(){
     document.head.appendChild(fav);
   }catch(e){ console.warn('manifest setup skipped',e); }
 
-  // Service Worker 등록 (https에서만 동작 · 오프라인에서도 앱이 열리게)
+  // Service Worker 등록 (https에서만 · 안드로이드 크롬은 알림에 SW 필수)
   if('serviceWorker' in navigator && location.protocol==='https:'){
-    const swCode=`
-      const CACHE='diary-v1';
-      self.addEventListener('install', e=>{ self.skipWaiting(); });
-      self.addEventListener('activate', e=>{ e.waitUntil(self.clients.claim()); });
-      self.addEventListener('fetch', e=>{
-        // 네트워크 우선, 실패하면 캐시 (오프라인 대비)
-        e.respondWith(
-          fetch(e.request).then(res=>{
-            const copy=res.clone();
-            caches.open(CACHE).then(c=>c.put(e.request,copy)).catch(()=>{});
-            return res;
-          }).catch(()=> caches.match(e.request))
-        );
-      });
-      self.addEventListener('notificationclick', e=>{
-        e.notification.close();
-        e.waitUntil(clients.matchAll({type:'window'}).then(list=>{
-          for(const c of list){ if('focus' in c) return c.focus(); }
-          if(clients.openWindow) return clients.openWindow('.');
-        }));
-      });
-    `;
-    try{
-      const swBlob=new Blob([swCode],{type:'text/javascript'});
-      const swUrl=URL.createObjectURL(swBlob);
-      navigator.serviceWorker.register(swUrl).catch(err=>console.warn('SW register failed',err));
-    }catch(e){ console.warn('SW setup skipped',e); }
+    navigator.serviceWorker.register('sw.js').then(reg=>{
+      console.log('SW 등록 성공', reg.scope);
+    }).catch(err=>{
+      console.warn('SW register failed',err);
+    });
   }
 
   // 설치 버튼: 브라우저가 설치 가능 판단하면 표시
