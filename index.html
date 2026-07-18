@@ -245,7 +245,10 @@ body:not(.mobile) .recap-spread::before{content:"";position:absolute;left:50%;to
 .td-chk{width:24px;height:24px;border:2.5px solid var(--ink);border-radius:7px;cursor:pointer;flex:0 0 auto;
   display:grid;place-items:center;font-size:15px;background:#fff;box-shadow:0 3px 0 rgba(0,0,0,.1);}
 .td-chk:active{transform:translateY(2px);box-shadow:none;}
-.td-time{width:60px;flex:0 0 auto;border:none;border-bottom:1.5px dashed #bbb;outline:none;font-size:14px;background:transparent;text-align:center;color:var(--ink);}
+.td-time{width:74px;flex:0 0 auto;border:none;border-bottom:1.5px dashed #bbb;outline:none;font-size:13px;background:transparent;text-align:center;color:var(--ink);}
+.td-timebtn{flex:0 0 auto;border:2px solid var(--line);background:#fff;border-radius:8px;cursor:pointer;
+  font-size:13px;width:28px;height:28px;display:grid;place-items:center;opacity:.6;padding:0;}
+.td-timebtn:hover{opacity:1;border-color:var(--ink);}
 .td-item .txt{flex:1;min-width:0;border:none;outline:none;font-size:17px;background:transparent;color:var(--ink);}
 .td-item.routine .txt::after{content:" ↻";}
 .td-badge-r{font-size:11px;border:1.5px solid var(--ink);border-radius:8px;padding:0 4px;flex:0 0 auto;}
@@ -299,6 +302,12 @@ body.mobile #mmWrap:not(.show-editor) #mmEditor{display:none;}
 body:not(.mobile) #mmListBtn{display:none;}
 
 body.mobile #book{width:96vw;height:90vh;border-radius:18px;}
+/* 모바일: 상단바가 다이어리와 안 겹치게 — 버튼은 위에 고정, 다이어리는 그 아래로 */
+body.mobile #topbar{top:10px;right:10px;gap:7px;flex-wrap:wrap;justify-content:flex-end;max-width:74vw;}
+body.mobile #topbar .jelly{padding:7px 11px;font-size:13px;}
+body.mobile #topbar .jelly.round{width:40px;height:40px;font-size:16px;}
+body.mobile #stage{align-items:flex-end;}
+body.mobile #book{height:calc(100vh - 116px);margin-bottom:8px;}
 /* 모바일: 왼쪽 챕터 탭 얇게 */
 body.mobile #tabs{width:44px;flex:0 0 44px;padding:10px 0;gap:8px;}
 body.mobile .tab{margin-left:5px;padding:10px 3px;font-size:12px;letter-spacing:0;border-radius:11px 0 0 11px;border-width:2px;box-shadow:-3px 3px 0 0 rgba(0,0,0,.12);}
@@ -506,7 +515,10 @@ body.mobile .recap-spread::before{display:none;}
 <div class="modal" id="routineModal">
   <div class="box" style="width:min(500px,94vw)">
     <h3><span class="naru" style="width:20px;height:20px"></span> Repeating routines</h3>
-    <div style="font-size:14px;color:#777;margin-bottom:8px">매주 정한 요일에 자동으로 뜨는 할 일이에요</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px">
+      <div style="font-size:14px;color:#777">매주 정한 요일에 자동으로 뜨는 할 일이에요</div>
+      <button class="jelly sm" id="notifBtn" onclick="toggleNotif()">🔕 알림 끄짐</button>
+    </div>
     <div id="routineList"></div>
     <button class="jelly sm" style="margin-top:8px" onclick="addRoutine()">+ 루틴 추가</button>
     <div class="row"><button class="jelly sm" onclick="closeRoutines()">close</button></div>
@@ -911,11 +923,14 @@ function renderCats(ds,d){
     const sorted=sortItems(c.items);
     const itemsHtml=sorted.map(it=>{
       const realIdx=c.items.indexOf(it);
+      const timeCell = (it.time || it._showTime)
+        ? `<input class="td-time" value="${it.time||''}" placeholder="--:--" type="time" onchange="setItemTime('${ds}',${ci},'${it.id}',this.value)">`
+        : `<button class="td-timebtn" onclick="showItemTime('${ds}',${ci},'${it.id}')" title="시간 지정">⏰</button>`;
       return `<div class="td-item ${it.done?'done':''} ${it.routineId?'routine':''}" draggable="true"
           data-ci="${ci}" data-id="${it.id}">
         <span class="grip">⠿</span>
         <div class="td-chk" onclick="toggleItem('${ds}',${ci},'${it.id}')">${it.done?'✓':''}</div>
-        <input class="td-time" value="${it.time||''}" placeholder="시간" onchange="setItemTime('${ds}',${ci},'${it.id}',this.value)">
+        ${timeCell}
         <input class="txt" value="${(it.text||'').replace(/"/g,'&quot;')}" oninput="setItemText('${ds}',${ci},'${it.id}',this.value)" placeholder="할 일">
         ${it.routineId?'<span class="td-badge-r">↻</span>':''}
         <button class="push" onclick="openPush('${ds}',${ci},'${it.id}')" title="다른 날로 넘기기">→</button>
@@ -946,7 +961,13 @@ function addItem(ds,ci){const d=tdData(ds);if(!d)return;d.cats[ci].items.push({i
 function delItem(ds,ci,id){const d=tdData(ds);if(!d)return;const c=d.cats[ci];c.items=c.items.filter(it=>it.id!==id);saveDay(ds,d);renderCats(ds,d);}
 function toggleItem(ds,ci,id){const d=tdData(ds);if(!d)return;const it=d.cats[ci].items.find(x=>x.id===id);if(it)it.done=!it.done;saveDay(ds,d);renderCats(ds,d);}
 function setItemText(ds,ci,id,v){const d=tdData(ds);if(!d)return;const it=d.cats[ci].items.find(x=>x.id===id);if(it)it.text=v;saveDay(ds,d);}
-function setItemTime(ds,ci,id,v){const d=tdData(ds);if(!d)return;const it=d.cats[ci].items.find(x=>x.id===id);if(it)it.time=v;saveDay(ds,d);renderCats(ds,d);}
+function setItemTime(ds,ci,id,v){const d=tdData(ds);if(!d)return;const it=d.cats[ci].items.find(x=>x.id===id);
+  if(it){it.time=v; if(!v)it._showTime=false;}saveDay(ds,d);renderCats(ds,d);}
+// 시계 버튼 → 시간 입력칸 나타나게
+function showItemTime(ds,ci,id){const d=tdData(ds);if(!d)return;const it=d.cats[ci].items.find(x=>x.id===id);
+  if(it)it._showTime=true;renderCats(ds,d);
+  // 방금 나타난 시간칸에 자동 포커스
+  setTimeout(()=>{const row=document.querySelector(`#tdCats .td-item[data-id="${id}"] .td-time`);if(row){row.focus();if(row.showPicker)try{row.showPicker();}catch(e){}}},30);}
 
 /* 드래그 순서 변경 (시간 없는 항목끼리) */
 function setupDrag(ds){
@@ -1013,7 +1034,7 @@ function renderCarry(ds){
 /* ===================== 루틴 ===================== */
 function loadRoutines(){return DB.load('routines',[]);}
 function saveRoutines(l){DB.save('routines',l);}
-function openRoutines(){renderRoutines();document.getElementById('routineModal').classList.add('show');}
+function openRoutines(){renderRoutines();updateNotifBtn();document.getElementById('routineModal').classList.add('show');}
 function closeRoutines(){document.getElementById('routineModal').classList.remove('show');tdLoad();}
 function renderRoutines(){
   const l=loadRoutines();
@@ -1034,6 +1055,68 @@ function setRoutine(i,k,v){const l=loadRoutines();if(l[i]){l[i][k]=v;saveRoutine
 function delRoutine(i){const l=loadRoutines();l.splice(i,1);saveRoutines(l);renderRoutines();}
 function toggleDow(i,di){const l=loadRoutines();if(!l[i])return;l[i].dows=l[i].dows||[];
   const p=l[i].dows.indexOf(di);if(p>=0)l[i].dows.splice(p,1);else l[i].dows.push(di);saveRoutines(l);renderRoutines();}
+
+/* ===================== 루틴 알림 (무료 · 로컬/SW) ===================== */
+function notifEnabled(){ return DB.load('notifOn', false); }
+function setNotif(on){ DB.save('notifOn', on); updateNotifBtn(); }
+function updateNotifBtn(){
+  const btn=document.getElementById('notifBtn'); if(!btn)return;
+  const on=notifEnabled() && ('Notification' in window) && Notification.permission==='granted';
+  btn.textContent = on ? '🔔 알림 켜짐' : '🔕 알림 끄짐';
+}
+async function toggleNotif(){
+  if(!('Notification' in window)){ alert('이 브라우저는 알림을 지원하지 않아요.'); return; }
+  if(notifEnabled() && Notification.permission==='granted'){
+    setNotif(false);
+    alert('루틴 알림을 껐어요.');
+    return;
+  }
+  let perm=Notification.permission;
+  if(perm!=='granted'){ perm=await Notification.requestPermission(); }
+  if(perm==='granted'){
+    setNotif(true);
+    // 테스트 알림
+    showNotif('알림이 켜졌어요! ✿','루틴 시간이 되면 알려드릴게요');
+  }else{
+    alert('알림 권한이 거부됐어요. 브라우저 설정에서 이 사이트의 알림을 허용해주세요.');
+  }
+}
+function showNotif(title, body){
+  try{
+    if(navigator.serviceWorker && navigator.serviceWorker.ready){
+      navigator.serviceWorker.ready.then(reg=>{
+        reg.showNotification(title,{body, icon: notifIcon(), badge: notifIcon(), tag:'diary-routine', renotify:false});
+      }).catch(()=>new Notification(title,{body}));
+    }else{
+      new Notification(title,{body});
+    }
+  }catch(e){ try{ new Notification(title,{body}); }catch(_){} }
+}
+function notifIcon(){
+  const svg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="96" height="96"><rect width="100" height="100" rx="22" fill="#141414"/><path fill="#fff" d="M50 80 C32 66 15 53 15 37 C15 25 24 16 35 16 C42 16 47 20 50 25 C53 20 58 16 65 16 C76 16 85 25 85 37 C85 53 68 66 50 80 Z"/></svg>';
+  return 'data:image/svg+xml;base64,'+btoa(unescape(encodeURIComponent(svg)));
+}
+// 하루에 같은 루틴 중복 알림 방지용 기록
+function firedKey(){ return 'notifFired_'+new Date().toISOString().slice(0,10); }
+function checkRoutineAlarms(){
+  if(!notifEnabled()) return;
+  if(!('Notification' in window) || Notification.permission!=='granted') return;
+  const now=new Date();
+  const dow=now.getDay();
+  const hhmm=String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
+  const routines=loadRoutines().filter(r=>r.time && r.dows && r.dows.includes(dow));
+  if(!routines.length) return;
+  let fired=DB.load(firedKey(), {});
+  routines.forEach(r=>{
+    if(r.time===hhmm && !fired[r.id]){
+      showNotif('루틴 시간이에요! ✿', (r.name||'할 일')+' 할 시간이에요');
+      fired[r.id]=true;
+    }
+  });
+  // 저장(로컬만, 플래시 안 뜨게 직접)
+  try{ localStorage.setItem('diary_'+firedKey(), JSON.stringify(fired)); }catch(e){}
+  if(fbUser){ cloudCache[firedKey()]=fired; }
+}
 
 /* ===================== 주간 뷰 ===================== */
 let weekStart=null;
@@ -1227,6 +1310,10 @@ function setupAuth(){
   go(DB.load('lastSec','calendar'));
 
   setupAuth();
+
+  // 루틴 알림: 1분마다 체크 (앱이 열려있거나 설치 시 SW가 살아있는 동안)
+  checkRoutineAlarms();
+  setInterval(checkRoutineAlarms, 30000); // 30초마다 (분 경계 놓치지 않게)
 })();
 
 /* ===================== PWA (설치 가능하게) ===================== */
@@ -1287,6 +1374,13 @@ function setupAuth(){
             return res;
           }).catch(()=> caches.match(e.request))
         );
+      });
+      self.addEventListener('notificationclick', e=>{
+        e.notification.close();
+        e.waitUntil(clients.matchAll({type:'window'}).then(list=>{
+          for(const c of list){ if('focus' in c) return c.focus(); }
+          if(clients.openWindow) return clients.openWindow('.');
+        }));
       });
     `;
     try{
