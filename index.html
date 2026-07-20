@@ -305,6 +305,21 @@ body.mobile #mmWrap.show-editor #mmList{display:none;}
 body.mobile #mmWrap:not(.show-editor) #mmEditor{display:none;}
 body:not(.mobile) #mmListBtn{display:none;}
 
+/* 사진 캐러셀 (좌우 버튼) */
+.carousel{position:relative;border:2.5px solid var(--ink);border-radius:14px;overflow:hidden;margin-bottom:12px;background:#f7f7f7;}
+.carousel-track{display:flex;align-items:center;justify-content:center;min-height:180px;max-height:340px;}
+.carousel-slide{width:100%;align-items:center;justify-content:center;}
+.carousel-slide img{max-width:100%;max-height:340px;display:block;margin:0 auto;object-fit:contain;}
+.carousel-btn{position:absolute;top:50%;transform:translateY(-50%);width:38px;height:38px;border-radius:50%;
+  border:2.5px solid var(--ink);background:#fff;cursor:pointer;font-size:22px;line-height:1;display:grid;place-items:center;
+  box-shadow:0 3px 0 rgba(0,0,0,.15);opacity:.9;}
+.carousel-btn:active{transform:translateY(-50%) scale(.92);}
+.carousel-btn.prev{left:8px;}
+.carousel-btn.next{right:8px;}
+.carousel-dots{position:absolute;bottom:8px;left:0;right:0;display:flex;gap:5px;justify-content:center;}
+.cdot{width:7px;height:7px;border-radius:50%;background:rgba(0,0,0,.25);}
+.cdot.on{background:var(--ink);}
+
 /* Diary */
 .dy-mood-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;}
 .dy-mood{width:44px;height:44px;border:2.5px solid var(--ink);border-radius:12px;background:#fff;cursor:pointer;
@@ -443,7 +458,7 @@ body.mobile .recap-spread::before{display:none;}
         <div class="pl-top">
           <div>
             <div class="pl-field"><span class="lab">YEAR / MONTH / DAY</span><input id="plYmd" placeholder="2026 / 07 / 16"></div>
-            <div class="pl-field" style="margin-top:6px"><span class="lab">COMMENT</span><input id="plComment" placeholder="오늘의 한마디"></div>
+            <div class="pl-field" style="margin-top:6px;align-items:flex-start"><span class="lab" style="padding-top:4px">COMMENT</span><textarea id="plComment" placeholder="오늘의 한마디" style="flex:1;min-width:0;border:none;outline:none;font-size:18px;background:transparent;font-family:var(--hand-font);resize:vertical;min-height:52px;line-height:1.5"></textarea></div>
             <div class="pl-field" style="margin-top:6px"><span class="lab">♫ SONG</span><input id="plSong" placeholder="제목 - 가수"></div>
           </div>
           <div>
@@ -548,17 +563,18 @@ body.mobile .recap-spread::before{display:none;}
 <div class="modal" id="calModal">
   <div class="box">
     <h3><span class="naru" style="width:20px;height:20px"></span> <span id="calModalDate"></span></h3>
-    <label>Holiday name (leave empty = not a holiday)</label>
-    <input id="calHolidayName" placeholder="e.g. 설날">
+    <label>공휴일 이름 (비우면 공휴일 아님)</label>
+    <input id="calHolidayName" placeholder="예: 설날">
     <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
-      <input type="checkbox" id="calIsHoliday" style="width:auto"> Mark as red day (holiday)
+      <input type="checkbox" id="calIsHoliday" style="width:auto"> 빨간날(공휴일)로 표시
     </label>
-    <label>Memo</label>
-    <textarea id="calMemo" placeholder="일정 / 메모..."></textarea>
+    <label>일정 / 메모</label>
+    <div id="calEventList"></div>
+    <button class="jelly sm" style="margin-top:6px" onclick="calAddEvent()">+ 일정 추가</button>
     <div class="row">
-      <button class="jelly sm" onclick="calClearDay()">clear</button>
-      <button class="jelly sm" onclick="closeCalModal()">cancel</button>
-      <button class="jelly sm" onclick="saveCalDay()">save ✿</button>
+      <button class="jelly sm" onclick="calClearDay()">전체 삭제</button>
+      <button class="jelly sm" onclick="closeCalModal()">취소</button>
+      <button class="jelly sm" onclick="saveCalDay()">저장 ✿</button>
     </div>
   </div>
 </div>
@@ -756,9 +772,29 @@ function updateTotal(){const on=[...document.querySelectorAll('#plTimetable .tt-
 const CHK=['','O','X','△','→'];
 function renderTasks(tasks){
   document.getElementById('plTasks').innerHTML=tasks.map((t,i)=>`
-    <div class="task"><div class="chk" onclick="cycleTask(${i})">${t.state||''}</div>
+    <div class="task" draggable="true" data-i="${i}">
+      <span class="grip" style="cursor:grab;color:#bbb;font-size:15px;flex:0 0 auto;user-select:none">⠿</span>
+      <div class="chk" onclick="cycleTask(${i})">${t.state||''}</div>
       <input class="tt" value="${(t.text||'').replace(/"/g,'&quot;')}" oninput="editTask(${i},this.value)" placeholder="할 일">
       <button class="dday-del" onclick="delTask(${i})">✕</button></div>`).join('');
+  setupTaskDrag();
+}
+function setupTaskDrag(){
+  const items=[...document.querySelectorAll('#plTasks .task')];
+  let dragEl=null;
+  items.forEach(el=>{
+    el.addEventListener('dragstart',e=>{dragEl=el;el.style.opacity='.4';e.dataTransfer.effectAllowed='move';});
+    el.addEventListener('dragend',()=>{el.style.opacity='';items.forEach(i=>i.style.borderTop='');});
+    el.addEventListener('dragover',e=>{e.preventDefault();if(el!==dragEl)el.style.borderTop='2.5px solid var(--ink)';});
+    el.addEventListener('dragleave',()=>el.style.borderTop='');
+    el.addEventListener('drop',e=>{e.preventDefault();el.style.borderTop='';
+      if(!dragEl||el===dragEl)return;
+      const from=+dragEl.dataset.i, to=+el.dataset.i;
+      const d=DB.load(plKey(),plDefault());
+      const[m]=d.tasks.splice(from,1);d.tasks.splice(to,0,m);
+      DB.save(plKey(),d);renderTasks(d.tasks);
+    });
+  });
 }
 function addTask(){const d=DB.load(plKey(),plDefault());d.tasks.push({text:'',state:''});DB.save(plKey(),d);renderTasks(d.tasks);}
 function editTask(i,v){const d=DB.load(plKey(),plDefault());d.tasks[i].text=v;DB.save(plKey(),d);}
@@ -812,7 +848,7 @@ function plLoad(){
 }
 function autoYmd(){const v=document.getElementById('plDate').value;if(!v)return'';const[y,m,dd]=v.split('-');return`${y} / ${m} / ${dd}`;}
 function plMove(dir){const el=document.getElementById('plDate');const d=new Date(el.value);d.setDate(d.getDate()+dir);
-  el.value=d.toISOString().slice(0,10);plLoad();}
+  el.value=localYmd(d);plLoad();}
 ['plYmd','plComment','plSong','plMemo'].forEach(id=>{
   document.addEventListener('input',e=>{if(e.target.id===id){const d=DB.load(plKey(),plDefault());
     d.ymd=plYmd.value;d.comment=plComment.value;d.song=plSong.value;d.memo=plMemo.value;DB.save(plKey(),d);}});
@@ -820,7 +856,7 @@ function plMove(dir){const el=document.getElementById('plDate');const d=new Date
 
 function recapLoad(){
   let mv=document.getElementById('recapMonth').value;
-  if(!mv){mv=(document.getElementById('plDate').value||new Date().toISOString().slice(0,10)).slice(0,7);
+  if(!mv){mv=(document.getElementById('plDate').value||localYmd()).slice(0,7);
     document.getElementById('recapMonth').value=mv;}
   const[y,m]=mv.split('-').map(Number);const days=new Date(y,m,0).getDate();
   let totalMin=0;const cards=[];
@@ -865,40 +901,43 @@ function calKey(y,m){return `cal_${y}-${String(m+1).padStart(2,'0')}`;} // 월�
 function calDayData(y,m){return DB.load(calKey(y,m),{});}
 function pad(n){return String(n).padStart(2,'0');}
 function dateStr(y,m,d){return `${y}-${pad(m+1)}-${pad(d)}`;}
+// Date 객체 → 로컬(KST 등) 기준 YYYY-MM-DD (toISOString은 UTC라 하루 밀리는 문제 방지)
+function localYmd(dt){ dt=dt||new Date(); return `${dt.getFullYear()}-${pad(dt.getMonth()+1)}-${pad(dt.getDate())}`; }
 
 function buildDow(){
-  const dows=['MON','TUE','WED','THU','FRI','SAT','SUN'];
+  const dows=['SUN','MON','TUE','WED','THU','FRI','SAT'];
   document.getElementById('calDow').innerHTML=dows.map((d,i)=>{
-    const cls=i===6?'sun':(i===5?'sat':'');
+    const cls=i===0?'sun':(i===6?'sat':'');
     return `<div class="cal-dow ${cls}">${d}</div>`;
   }).join('');
 }
 function renderCal(){
   document.getElementById('calYm').textContent=`${calYear} · ${pad(calMonth+1)}`;
   const first=new Date(calYear,calMonth,1);
-  let startDow=(first.getDay()+6)%7; // 월요일=0
+  let startDow=first.getDay(); // 일요일=0
   const days=new Date(calYear,calMonth+1,0).getDate();
   const userData=calDayData(calYear,calMonth);
-  const todayStr=new Date().toISOString().slice(0,10);
+  const todayStr=localYmd();
   let html='';
   for(let i=0;i<startDow;i++) html+=`<div class="cal-cell empty"></div>`;
   for(let d=1;d<=days;d++){
     const ds=dateStr(calYear,calMonth,d);
-    const dow=(startDow+d-1)%7;
+    const dow=(startDow+d-1)%7; // 0=일 ~ 6=토
     const ud=userData[d]||{};
     const builtinH=HOLIDAYS[ds];
     const isHoliday = ud.holiday!==undefined ? ud.holiday : (builtinH!==undefined && builtinH!=='');
     const hname = ud.name!==undefined ? ud.name : (builtinH||'');
     const cls=[
       'cal-cell',
-      dow===6?'sun':'', dow===5?'sat':'',
+      dow===0?'sun':'', dow===6?'sat':'',
       isHoliday?'holiday':'',
       ds===todayStr?'today':''
     ].join(' ');
+    const memos = ud.memos || (ud.memo?[ud.memo]:[]); // 구버전 memo 호환
     html+=`<div class="${cls}" onclick="openCalModal(${d})">
       <div class="cal-num">${d}</div>
       ${isHoliday&&hname?`<div class="cal-hname">${hname}</div>`:''}
-      ${ud.memo?`<div class="cal-memo">${ud.memo.replace(/</g,'&lt;')}</div>`:''}
+      ${memos.map(m=>`<div class="cal-memo">${m.replace(/</g,'&lt;')}</div>`).join('')}
     </div>`;
   }
   document.getElementById('calGrid').innerHTML=html;
@@ -908,6 +947,7 @@ function calMove(dir){calMonth+=dir;if(calMonth<0){calMonth=11;calYear--;}if(cal
 function calToday(){const n=new Date();calYear=n.getFullYear();calMonth=n.getMonth();DB.save('calYm',{y:calYear,m:calMonth});renderCal();}
 
 let calEditDay=null;
+let calEditEvents=[]; // 편집 중 일정 목록
 function openCalModal(d){
   calEditDay=d;
   const ds=dateStr(calYear,calMonth,d);
@@ -918,16 +958,30 @@ function openCalModal(d){
   document.getElementById('calModalDate').textContent=ds;
   document.getElementById('calHolidayName').value=hname;
   document.getElementById('calIsHoliday').checked=isHoliday;
-  document.getElementById('calMemo').value=ud.memo||'';
+  // 일정 목록: 신버전 memos[] 우선, 없으면 구버전 memo 하나 변환
+  calEditEvents = ud.memos ? [...ud.memos] : (ud.memo ? [ud.memo] : []);
+  renderCalEvents();
   document.getElementById('calModal').classList.add('show');
 }
+function renderCalEvents(){
+  const wrap=document.getElementById('calEventList');
+  wrap.innerHTML=calEditEvents.map((m,i)=>`
+    <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
+      <input class="jd-in" style="flex:1;border:2px solid var(--ink);border-radius:10px;padding:8px" value="${(m||'').replace(/"/g,'&quot;')}" oninput="calEditEvents[${i}]=this.value" placeholder="일정 내용">
+      <button class="dday-del" onclick="calDelEvent(${i})">✕</button>
+    </div>`).join('');
+}
+function calAddEvent(){ calEditEvents.push(''); renderCalEvents();
+  setTimeout(()=>{const ins=document.querySelectorAll('#calEventList input');if(ins.length)ins[ins.length-1].focus();},20); }
+function calDelEvent(i){ calEditEvents.splice(i,1); renderCalEvents(); }
 function closeCalModal(){document.getElementById('calModal').classList.remove('show');}
 function saveCalDay(){
   const data=calDayData(calYear,calMonth);
+  const events=calEditEvents.map(s=>(s||'').trim()).filter(s=>s);
   data[calEditDay]={
     holiday:document.getElementById('calIsHoliday').checked,
     name:document.getElementById('calHolidayName').value,
-    memo:document.getElementById('calMemo').value
+    memos:events
   };
   DB.save(calKey(calYear,calMonth),data);renderCal();closeCalModal();
 }
@@ -947,16 +1001,19 @@ function curDs(){return document.getElementById('tdDate').value;}
 function ensureDay(ds){
   let d=tdData(ds);
   if(!d){ d=tdDefault(); }
-  // 루틴 주입 (해당 요일에 맞는 루틴이 아직 없으면 추가)
+  // 루틴 주입 (해당 요일에 맞는 루틴이 아직 없으면, 지정한 분야에 추가)
   const dow=new Date(ds).getDay();
   const routines=loadRoutines().filter(r=>r.dows&&r.dows.includes(dow));
-  if(routines.length){
-    if(!d.cats.length) d.cats.push({id:'c'+Date.now(),name:'루틴',collapsed:false,items:[]});
-    routines.forEach(r=>{
-      const exists=d.cats.some(c=>c.items.some(it=>it.routineId===r.id));
-      if(!exists){ d.cats[0].items.push({id:'i'+Math.random().toString(36).slice(2),text:r.name,time:r.time||'',done:false,routineId:r.id}); }
-    });
-  }
+  routines.forEach(r=>{
+    const exists=d.cats.some(c=>c.items.some(it=>it.routineId===r.id));
+    if(!exists){
+      const catName=r.cat||'루틴';
+      // 같은 이름 분야 찾기, 없으면 생성
+      let cat=d.cats.find(c=>c.name===catName);
+      if(!cat){ cat={id:'c'+Math.random().toString(36).slice(2),name:catName,collapsed:false,items:[]}; d.cats.push(cat); }
+      cat.items.push({id:'i'+Math.random().toString(36).slice(2),text:r.name,time:r.time||'',done:false,routineId:r.id});
+    }
+  });
   return d;
 }
 function saveDay(ds,d){DB.save(tdKey(ds),d);}
@@ -971,7 +1028,7 @@ function tdLoad(){
   renderCats(ds,d);
 }
 function tdMove(dir){const el=document.getElementById('tdDate');const d=new Date(el.value);d.setDate(d.getDate()+dir);
-  el.value=d.toISOString().slice(0,10);tdLoad();}
+  el.value=localYmd(d);tdLoad();}
 
 function sortItems(items){
   // 미완료 먼저, 그 안에서 시간 지정된 것 시간순, 시간 없는 건 뒤, 완료는 맨 아래
@@ -1067,7 +1124,7 @@ function pushCatAll(ds,ci){pushCtx={mode:'cat',ds,ci};document.getElementById('p
 function pushAllDay(ds){pushCtx={mode:'day',ds};document.getElementById('pushTitle').textContent='오늘 미완료 전체 넘기기';
   document.getElementById('pushDate').value=nextDay(ds);document.getElementById('pushModal').classList.add('show');}
 function closePush(){document.getElementById('pushModal').classList.remove('show');}
-function nextDay(ds){const d=new Date(ds);d.setDate(d.getDate()+1);return d.toISOString().slice(0,10);}
+function nextDay(ds){const d=new Date(ds);d.setDate(d.getDate()+1);return localYmd(d);}
 function confirmPush(){
   const target=document.getElementById('pushDate').value;if(!target||!pushCtx){closePush();return;}
   const {mode,ds,ci,id}=pushCtx;
@@ -1087,7 +1144,7 @@ function confirmPush(){
 
 /* 지난 미완료 이월 안내 (전날 미완료 있으면 상단에) */
 function renderCarry(ds){
-  const prev=new Date(ds);prev.setDate(prev.getDate()-1);const pds=prev.toISOString().slice(0,10);
+  const prev=new Date(ds);prev.setDate(prev.getDate()-1);const pds=localYmd(prev);
   const pd=tdData(pds);let cnt=0;if(pd)pd.cats.forEach(c=>c.items.forEach(it=>{if(!it.done)cnt++;}));
   const wrap=document.getElementById('tdCarry');
   if(cnt>0){
@@ -1105,22 +1162,35 @@ function openRoutines(){renderRoutines();updateNotifBtn();document.getElementByI
 function closeRoutines(){document.getElementById('routineModal').classList.remove('show');tdLoad();}
 function renderRoutines(){
   const l=loadRoutines();
-  document.getElementById('routineList').innerHTML=l.map((r,i)=>{
-    const bellOn = r.notify!==false; // 기본 켜짐
-    return `
-    <div class="routine-row">
-      <div class="rr-top">
-        <button class="rbell ${bellOn?'on':''}" onclick="toggleRoutineNotify(${i})" title="${bellOn?'알림 켜짐 (누르면 끄기)':'알림 꺼짐 (누르면 켜기)'}">${bellOn?'🔔':'🔕'}</button>
-        <input class="rname" value="${(r.name||'').replace(/"/g,'&quot;')}" placeholder="루틴 이름" oninput="setRoutine(${i},'name',this.value)">
-        <input class="rtime" type="time" value="${r.time||''}" onchange="setRoutine(${i},'time',this.value)">
-        <button class="td-timebtn" style="width:26px;height:26px" onclick="clearRoutineTime(${i})" title="시간 지우기">✕</button>
-        <button class="dday-del" onclick="delRoutine(${i})">✕</button>
-      </div>
-      <div class="dow-pick">
-        ${DOW_KR.map((d,di)=>`<div class="dow-btn ${r.dows&&r.dows.includes(di)?'on':''}" onclick="toggleDow(${i},${di})">${d}</div>`).join('')}
-      </div>
-    </div>`;
-  }).join('');
+  // 분야별로 그룹 (cat 없으면 '기타')
+  const cats={};
+  l.forEach((r,i)=>{ const c=r.cat||''; (cats[c]=cats[c]||[]).push(i); });
+  const catNames=Object.keys(cats);
+  let html='';
+  catNames.forEach(cn=>{
+    html+=`<div style="margin:6px 0 4px;font-size:14px;color:#888;border-bottom:2px solid var(--line);padding-bottom:3px">${cn?cn.replace(/</g,'&lt;'):'분야 없음'}</div>`;
+    cats[cn].forEach(i=>{
+      const r=l[i];const bellOn=r.notify!==false;
+      html+=`
+      <div class="routine-row">
+        <div class="rr-top">
+          <button class="rbell ${bellOn?'on':''}" onclick="toggleRoutineNotify(${i})" title="${bellOn?'알림 켜짐':'알림 꺼짐'}">${bellOn?'🔔':'🔕'}</button>
+          <input class="rname" value="${(r.name||'').replace(/"/g,'&quot;')}" placeholder="루틴 이름" oninput="setRoutine(${i},'name',this.value)">
+          <input class="rtime" type="time" value="${r.time||''}" onchange="setRoutine(${i},'time',this.value)">
+          <button class="td-timebtn" style="width:26px;height:26px" onclick="clearRoutineTime(${i})" title="시간 지우기">✕</button>
+          <button class="dday-del" onclick="delRoutine(${i})">✕</button>
+        </div>
+        <div class="rr-top" style="margin-top:5px">
+          <span class="k" style="font-size:13px;color:#888">분야</span>
+          <input class="jd-in" style="flex:1" value="${(r.cat||'').replace(/"/g,'&quot;')}" placeholder="예: 공부, 운동 (비우면 분야 없음)" onchange="setRoutine(${i},'cat',this.value)">
+        </div>
+        <div class="dow-pick">
+          ${DOW_KR.map((d,di)=>`<div class="dow-btn ${r.dows&&r.dows.includes(di)?'on':''}" onclick="toggleDow(${i},${di})">${d}</div>`).join('')}
+        </div>
+      </div>`;
+    });
+  });
+  document.getElementById('routineList').innerHTML=html || '<div style="color:#aaa;font-size:14px;padding:6px">아직 루틴이 없어요. + 루틴 추가를 눌러보세요!</div>';
 }
 function toggleRoutineNotify(i){const l=loadRoutines();if(!l[i])return;
   l[i].notify=(l[i].notify===false)?true:false;saveRoutines(l);renderRoutines();}
@@ -1208,7 +1278,7 @@ function notifIcon(){
   return 'data:image/svg+xml;base64,'+btoa(unescape(encodeURIComponent(svg)));
 }
 // 하루에 같은 루틴 중복 알림 방지용 기록
-function firedKey(){ return 'notifFired_'+new Date().toISOString().slice(0,10); }
+function firedKey(){ return 'notifFired_'+localYmd(); }
 function checkRoutineAlarms(){
   if(!notifEnabled()) return;
   if(!('Notification' in window) || Notification.permission!=='granted') return;
@@ -1233,18 +1303,18 @@ function checkRoutineAlarms(){
 let weekStart=null;
 function openWeekly(){
   const ds=curDs();const d=new Date(ds);const dow=(d.getDay()+6)%7; // 월요일 시작
-  d.setDate(d.getDate()-dow);weekStart=d.toISOString().slice(0,10);
+  d.setDate(d.getDate()-dow);weekStart=localYmd(d);
   renderWeek();document.getElementById('weeklyModal').classList.add('show');
 }
 function closeWeekly(){document.getElementById('weeklyModal').classList.remove('show');}
-function weekMove(dir){const d=new Date(weekStart);d.setDate(d.getDate()+dir*7);weekStart=d.toISOString().slice(0,10);renderWeek();}
+function weekMove(dir){const d=new Date(weekStart);d.setDate(d.getDate()+dir*7);weekStart=localYmd(d);renderWeek();}
 function renderWeek(){
   const start=new Date(weekStart);const end=new Date(weekStart);end.setDate(end.getDate()+6);
-  document.getElementById('weekRange').textContent=`${weekStart} ~ ${end.toISOString().slice(0,10)}`;
-  const todayStr=new Date().toISOString().slice(0,10);
+  document.getElementById('weekRange').textContent=`${weekStart} ~ ${enlocalYmd(d)}`;
+  const todayStr=localYmd();
   let html='';
   for(let i=0;i<7;i++){
-    const dd=new Date(weekStart);dd.setDate(dd.getDate()+i);const ds=dd.toISOString().slice(0,10);
+    const dd=new Date(weekStart);dd.setDate(dd.getDate()+i);const ds=dlocalYmd(d);
     const data=tdData(ds);let total=0,done=0;const names=[];
     if(data)data.cats.forEach(c=>c.items.forEach(it=>{total++;if(it.done)done++;if(names.length<3&&it.text)names.push((it.done?'✓ ':'')+it.text);}));
     const dw=dd.getDay();
@@ -1276,35 +1346,70 @@ function renderMmList(){
       return `<div class="mm-card ${n.id===mmSel?'sel':''}" onclick="mmOpen('${n.id}')">
         <div class="mt">${(n.title||'제목 없음').replace(/</g,'&lt;')}</div>
         <div class="mp">${preview.replace(/</g,'&lt;')||'…'}</div>
-        <div class="mdate">${d.toISOString().slice(0,10)}${n.photos&&n.photos.length?' · 📷'+n.photos.length:''}</div>
+        <div class="mdate">${localYmd(d)}${n.photos&&n.photos.length?' · 📷'+n.photos.length:''}</div>
       </div>`;
     }).join('');
   }
 }
+let mmMode='view'; // view | edit
+function mmToggleMode(){ mmMode=(mmMode==='view')?'edit':'view'; renderMmEditor(); }
+
+/* 공통 사진 캐러셀 (좌우 버튼) */
+function carouselHTML(photos, prefix){
+  if(!photos||!photos.length) return '';
+  return `<div class="carousel" data-prefix="${prefix}" data-idx="0" data-len="${photos.length}">
+    <div class="carousel-track">${photos.map((p,i)=>`<div class="carousel-slide" style="display:${i===0?'flex':'none'}"><img src="${p}"></div>`).join('')}</div>
+    ${photos.length>1?`<button class="carousel-btn prev" onclick="carouselMove('${prefix}',-1)">‹</button>
+    <button class="carousel-btn next" onclick="carouselMove('${prefix}',1)">›</button>
+    <div class="carousel-dots">${photos.map((_,i)=>`<span class="cdot ${i===0?'on':''}"></span>`).join('')}</div>`:''}
+  </div>`;
+}
+function carouselMove(prefix,dir){
+  const c=document.querySelector(`.carousel[data-prefix="${prefix}"]`);if(!c)return;
+  const len=+c.dataset.len;let idx=+c.dataset.idx;
+  idx=(idx+dir+len)%len;c.dataset.idx=idx;
+  c.querySelectorAll('.carousel-slide').forEach((s,i)=>s.style.display=i===idx?'flex':'none');
+  c.querySelectorAll('.cdot').forEach((d,i)=>d.classList.toggle('on',i===idx));
+}
+
 function renderMmEditor(){
   const ed=document.getElementById('mmEditor');
   const l=mmLoad();const n=l.find(x=>x.id===mmSel);
-  if(!n){ed.innerHTML='<div id="mmEmpty"><span class="naru"></span>왼쪽에서 노트를 고르거나<br>새 노트를 만들어보세요</div>';paintNaru();return;}
-  ed.innerHTML=`
-    <input class="med-title" value="${(n.title||'').replace(/"/g,'&quot;')}" placeholder="제목" oninput="mmSet('title',this.value)">
-    <div class="med-photos" id="medPhotos">${(n.photos||[]).map((p,i)=>`
-      <div class="med-photo"><img src="${p}"><div class="rm" onclick="mmRmPhoto(${i})">✕</div></div>`).join('')}</div>
-    <textarea class="med-body" placeholder="자유롭게 적어보세요..." oninput="mmSet('body',this.value)">${(n.body||'').replace(/</g,'&lt;')}</textarea>
-    <div class="med-tools">
-      <button class="jelly sm" onclick="document.getElementById('mmFile').click()">+ 사진</button>
-      <button class="jelly sm" onclick="mmDelete()">🗑 삭제</button>
-    </div>
-    <input type="file" id="mmFile" accept="image/*" multiple style="display:none" onchange="mmAddPhotos(this.files)">`;
+  if(!n){ed.innerHTML='<div id="mmEmpty"><span class="naru"></span></div>';paintNaru();return;}
+
+  if(mmMode==='view'){
+    ed.innerHTML=`
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px">
+        <div class="med-title" style="border:none">${(n.title||'제목 없음').replace(/</g,'&lt;')}</div>
+        <button class="jelly sm" onclick="mmToggleMode()">✎ 수정</button>
+      </div>
+      ${carouselHTML(n.photos,'mm')}
+      <div class="med-body" style="border:none;white-space:pre-wrap">${(n.body||'').replace(/</g,'&lt;')||'<span style=\"color:#bbb\">내용 없음</span>'}</div>`;
+  }else{
+    ed.innerHTML=`
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px">
+        <input class="med-title" style="flex:1" value="${(n.title||'').replace(/"/g,'&quot;')}" placeholder="제목" oninput="mmSet('title',this.value)">
+        <button class="jelly sm" onclick="mmToggleMode()">👁 보기</button>
+      </div>
+      <div class="med-photos" id="medPhotos">${(n.photos||[]).map((p,i)=>`
+        <div class="med-photo"><img src="${p}"><div class="rm" onclick="mmRmPhoto(${i})">✕</div></div>`).join('')}</div>
+      <textarea class="med-body" placeholder="자유롭게 적어보세요..." oninput="mmSet('body',this.value)">${(n.body||'').replace(/</g,'&lt;')}</textarea>
+      <div class="med-tools">
+        <button class="jelly sm" onclick="document.getElementById('mmFile').click()">+ 사진</button>
+        <button class="jelly sm" onclick="mmDelete()">🗑 삭제</button>
+      </div>
+      <input type="file" id="mmFile" accept="image/*" multiple style="display:none" onchange="mmAddPhotos(this.files)">`;
+  }
 }
 function mmRender(){renderMmList();renderMmEditor();}
 
 function mmNew(){
   const l=mmLoad();const id='m'+Date.now();
   l.unshift({id,title:'',body:'',photos:[],created:Date.now(),updated:Date.now()});
-  mmSave(l);mmSel=id;mmRender();
+  mmSave(l);mmSel=id;mmMode='edit';mmRender();
   if(document.body.classList.contains('mobile'))document.getElementById('mmWrap').classList.add('show-editor');
 }
-function mmOpen(id){mmSel=id;mmRender();
+function mmOpen(id){mmSel=id;mmMode='view';mmRender();
   if(document.body.classList.contains('mobile'))document.getElementById('mmWrap').classList.add('show-editor');}
 function mmSet(k,v){const l=mmLoad();const n=l.find(x=>x.id===mmSel);if(!n)return;n[k]=v;n.updated=Date.now();mmSave(l);
   // 목록 미리보기만 갱신 (에디터는 포커스 유지 위해 안 건드림)
@@ -1346,7 +1451,7 @@ function dyData(){ return DB.load(dyKey(), null); }
 function dySave(d){ DB.save(dyKey(), d); }
 
 function dyMove(dir){const el=document.getElementById('dyDate');const d=new Date(el.value);d.setDate(d.getDate()+dir);
-  el.value=d.toISOString().slice(0,10);dyLoad();}
+  el.value=localYmd(d);dyLoad();}
 function dyToggleMode(){ dyMode = (dyMode==='view')?'edit':'view'; dyRender(); }
 function dyLoad(){
   DB.save('dyLastDate', document.getElementById('dyDate').value);
@@ -1369,7 +1474,7 @@ function dyViewHTML(d){
   if(d.mood) h+=`<div class="dy-mood-row"><div class="dy-mood view sel">${d.mood}</div>
     <span style="font-size:15px;color:#888">오늘의 기분</span></div>`;
   if(d.photos&&d.photos.length){
-    h+=`<div class="dy-photos">${d.photos.map(p=>`<div class="dy-photo"><img src="${p}"></div>`).join('')}</div>`;
+    h+=carouselHTML(d.photos,'dy');
   }
   if(d.text) h+=`<div class="dy-section" style="white-space:pre-wrap;font-size:17px;line-height:1.7">${d.text.replace(/</g,'&lt;')}</div>`;
   if(d.videos&&d.videos.length){
@@ -1640,10 +1745,10 @@ function setupAuth(){
   document.documentElement.style.setProperty('--hand-font',savedFont);
   buildFontList();loadCover();buildTimetable();
 
-  document.getElementById('plDate').value=DB.load('plLastDate',new Date().toISOString().slice(0,10));
+  document.getElementById('plDate').value=DB.load('plLastDate',localYmd());
   plLoad();
 
-  document.getElementById('tdDate').value=DB.load('tdLastDate',new Date().toISOString().slice(0,10));
+  document.getElementById('tdDate').value=DB.load('tdLastDate',localYmd());
   tdLoad();
 
   const cy=DB.load('calYm',null);const n=new Date();
@@ -1652,7 +1757,7 @@ function setupAuth(){
 
   mmRender();
 
-  document.getElementById('dyDate').value=DB.load('dyLastDate',new Date().toISOString().slice(0,10));
+  document.getElementById('dyDate').value=DB.load('dyLastDate',localYmd());
   dyRender();
 
   go(DB.load('lastSec','calendar'));
