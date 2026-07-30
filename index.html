@@ -38,6 +38,11 @@
 </script>
 <!-- ▲▲▲ Firebase ▲▲▲ -->
 <style>
+@font-face{
+  font-family:'Griun';
+  src:url('griun.woff2') format('woff2');
+  font-weight:normal;font-style:normal;font-display:swap;
+}
 :root{
   --paper:#ffffff;--ink:#111111;--line:#d9d9d9;--line-soft:#ebebeb;
   --cover:#141414;--cover-2:#1f1f1f;--tab-face:#ffffff;--red:#111;
@@ -709,6 +714,7 @@ const FONTS=[
   {name:'푸어스토리',css:"'Poor Story', cursive"},{name:'싱글데이',css:"'Single Day', cursive"},
   {name:'하이멜로디',css:"'Hi Melody', cursive"},{name:'동글',css:"'Dongle', sans-serif"},
   {name:'나눔손글씨 펜',css:"'Nanum Pen Script', cursive"},{name:'동해독도',css:"'East Sea Dokdo', cursive"},
+  {name:'그리운 제임스네일',css:"'Griun', serif"},
 ];
 function buildFontList(){
   const wrap=document.getElementById('fontList');const cur=DB.load('font',FONTS[0].css);wrap.innerHTML='';
