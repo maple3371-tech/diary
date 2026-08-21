@@ -459,15 +459,15 @@ body.mobile #laptop{padding:0;justify-content:flex-end;}
 
 /* ===================== TIME TABLE (요일×시간) ===================== */
 .tt2-head{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:2px;}
-.tt2-table{width:100%;border-collapse:collapse;font-family:var(--hand-font);}
-.tt2-table th,.tt2-table td{border:1.5px solid var(--ink);text-align:center;}
+.tt2-table{width:100%;border-collapse:collapse;font-family:var(--hand-font);table-layout:fixed;}
+.tt2-table th,.tt2-table td{border:1.5px solid var(--ink);text-align:center;overflow:hidden;}
 .tt2-table th{background:var(--ink);color:#fff;font-family:var(--ui-font);font-size:13px;padding:6px 2px;}
-.tt2-table th:first-child{width:52px;}
-.tt2-time{background:#fafafa;font-family:var(--ui-font);font-size:12px;color:#555;width:52px;padding:2px;}
+.tt2-table th:first-child,.tt2-table col.tt2-timecol{width:48px;}
+.tt2-time{background:#fafafa;font-family:var(--ui-font);font-size:12px;color:#555;padding:2px;}
 .tt2-cell{height:34px;cursor:pointer;position:relative;padding:0;vertical-align:top;transition:background .1s;}
 .tt2-cell:hover{background:#f4f4f4;}
 .tt2-sub{width:100%;height:100%;min-height:34px;border-radius:5px;font-size:12px;color:#fff;
-  display:flex;align-items:center;justify-content:center;padding:2px;line-height:1.1;word-break:keep-all;overflow:hidden;}
+  display:flex;align-items:center;justify-content:center;padding:2px;line-height:1.1;word-break:break-all;overflow:hidden;}
 /* 과목 편집 모달 */
 .subj-list{display:flex;flex-direction:column;gap:6px;margin:8px 0;}
 .subj-item{display:flex;align-items:center;gap:8px;}
@@ -530,6 +530,10 @@ body.mobile #laptop{padding:0;justify-content:flex-end;}
 /* 페이지+캔버스 스택 */
 .ln-page-stack{position:relative;width:100%;max-width:640px;aspect-ratio:1/1.414;}
 .ln-page-label{width:100%;max-width:640px;display:flex;justify-content:space-between;align-items:center;font-family:var(--ui-font);font-size:13px;color:#666;margin-bottom:-8px;}
+.ln-zoombar{display:flex;align-items:center;gap:8px;padding:6px 8px;border:2.5px solid var(--ink);border-top:none;border-bottom:none;background:#eee;}
+.ln-zoombar button{border:2px solid var(--ink);background:#fff;border-radius:8px;cursor:pointer;font-size:13px;padding:3px 9px;box-shadow:0 2px 0 rgba(0,0,0,.1);}
+.ln-zoombar button:active{transform:translateY(2px);box-shadow:none;}
+.ln-zoom-inner{width:100%;display:flex;flex-direction:column;align-items:center;gap:16px;transition:transform .12s;}
 .ln-page-stack .ln-page{width:100%;height:100%;max-width:none;aspect-ratio:auto;position:absolute;inset:0;}
 .ln-canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;z-index:2;pointer-events:none;border-radius:0;}
 /* 사진 배경 */
@@ -1136,7 +1140,7 @@ function tt2Render(){
   document.getElementById('tt2Title').textContent=cur.name||'Time Table';
   document.getElementById('tt2Period').textContent=(cur.from||cur.to)?`기간: ${cur.from||'?'} ~ ${cur.to||'?'}`:'기간 미설정';
   // 격자
-  let html='<table class="tt2-table"><thead><tr><th>시간</th>'+TT2_DAYS.map(d=>`<th>${d}</th>`).join('')+'</tr></thead><tbody>';
+  let html='<table class="tt2-table"><colgroup><col class="tt2-timecol">'+TT2_DAYS.map(()=>'<col>').join('')+'</colgroup><thead><tr><th>시간</th>'+TT2_DAYS.map(d=>`<th>${d}</th>`).join('')+'</tr></thead><tbody>';
   TT2_HOURS.forEach(h=>{
     html+=`<tr><td class="tt2-time">${String(h).padStart(2,'0')}:00</td>`;
     TT2_DAYS.forEach((d,di)=>{
@@ -1462,11 +1466,35 @@ function lnRenderEditor(){
       <button onclick="lnImgDelete()" title="이미지 삭제">🗑</button>
       <button onclick="lnImgResizeDone()">완료</button>
     </div>
+    <div class="ln-zoombar">
+      <span style="font-size:13px;color:#555">배율</span>
+      <button onclick="lnZoom(-1)" title="축소">➖</button>
+      <span id="lnZoomVal" style="font-size:13px;min-width:44px;text-align:center">100%</span>
+      <button onclick="lnZoom(1)" title="확대">➕</button>
+      <button onclick="lnZoomReset()" title="원래대로">↺</button>
+    </div>
     <div class="ln-page-wrap" id="lnPageWrap">
-      PAGES_HERE
+      <div class="ln-zoom-inner" id="lnZoomInner">PAGES_HERE</div>
       <button class="jelly sm" onclick="lnAddPage()" style="margin:4px auto 8px">+ 페이지 추가</button>
     </div>`;
   lnRenderPages();
+  lnApplyZoom();
+}
+/* 배율 조정 */
+let lnZoomLevel=1;
+function lnZoom(dir){
+  lnZoomLevel=Math.max(0.4,Math.min(2.5, lnZoomLevel+dir*0.1));
+  lnApplyZoom();
+}
+function lnZoomReset(){ lnZoomLevel=1; lnApplyZoom(); }
+function lnApplyZoom(){
+  const inner=document.getElementById('lnZoomInner');
+  if(inner){
+    inner.style.transform='scale('+lnZoomLevel+')';
+    inner.style.transformOrigin='top center';
+  }
+  const v=document.getElementById('lnZoomVal');
+  if(v)v.textContent=Math.round(lnZoomLevel*100)+'%';
 }
 
 /* ===== 다중 페이지 ===== */
@@ -1493,13 +1521,15 @@ function lnRenderPages(){
       <canvas class="ln-canvas" id="lnCanvas${i}"></canvas>
       <div class="ln-boxlayer" id="lnBoxLayer${i}">${(p.boxes||[]).map((b,bi)=>lnBoxHTML(i,bi,b)).join('')}</div>
     </div>`).join('');
-  if(wrap.innerHTML.includes('PAGES_HERE')){
+  const inner=document.getElementById('lnZoomInner');
+  if(inner && inner.innerHTML.includes('PAGES_HERE')){
+    inner.innerHTML=pagesHTML;
+  }else if(inner){
+    inner.innerHTML=pagesHTML;
+  }else if(wrap.innerHTML.includes('PAGES_HERE')){
     wrap.innerHTML=wrap.innerHTML.replace('PAGES_HERE',pagesHTML);
-  }else{
-    const btn=wrap.querySelector('button');
-    wrap.innerHTML=pagesHTML;
-    if(btn)wrap.appendChild(btn);
   }
+  lnApplyZoom&&lnApplyZoom();
   note.pages.forEach((p,i)=>lnInitCanvas(i,p.draw||''));
   document.querySelectorAll('#lnPageWrap .ln-page').forEach((pg,i)=>{
     pg.addEventListener('focus',()=>{ lnCurFocusPage=i; });
@@ -1937,8 +1967,8 @@ async function lnBuildPDF(className, pages){
   // 인쇄창에 이미지들을 A4 한 장씩 배치
   const w=window.open('','_blank');
   if(!w){ alert('팝업이 차단됐어요. 팝업을 허용해주세요.'); return; }
-  const style='<style>@page{size:A4;margin:0;}body{margin:0;}img{width:100%;height:100vh;object-fit:contain;display:block;page-break-after:always;}img:last-child{page-break-after:auto;}</style>';
-  const body=images.map(src=>`<img src="${src}">`).join('');
+  const style='<style>@page{size:A4;margin:8mm;}body{margin:0;}.pdfpage{width:100%;height:calc(100vh - 2px);display:flex;align-items:center;justify-content:center;page-break-after:always;box-sizing:border-box;}.pdfpage:last-child{page-break-after:auto;}.pdfpage img{max-width:100%;max-height:100%;object-fit:contain;display:block;}</style>';
+  const body=images.map(src=>`<div class="pdfpage"><img src="${src}"></div>`).join('');
   const scriptTag='<scr'+'ipt>window.onload=function(){setTimeout(function(){window.print();},400);}</scr'+'ipt>';
   w.document.write('<html><head><title>'+className+'</title>'+style+'</head><body>'+body+scriptTag+'</body></html>');
   w.document.close();
