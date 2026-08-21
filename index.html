@@ -17,6 +17,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
   // ★ 여기에 본인 Firebase 설정을 넣으세요 (콘솔 → 프로젝트 설정 → 웹 앱)
   const firebaseConfig = {
@@ -93,6 +94,9 @@ body{background:#f4f4f4;color:var(--ink);overflow:hidden;display:flex;align-item
 #cover .cyear{position:absolute;bottom:20px;font-size:16px;opacity:.6;}
 #cover .edit-hint{position:absolute;top:14px;right:14px;font-size:14px;opacity:.55;}
 #stage.opened #cover{transform:rotateY(-165deg);opacity:0;pointer-events:none;}
+/* 책상 화면에선 노트 표지 숨김 (note-open일 때만 보임) */
+#cover{display:none;}
+#stage.note-open #cover{display:flex;}
 
 /* 펼친 다이어리 */
 #book{display:none;width:min(940px,96vw);height:min(600px,92vh);background:var(--paper);
@@ -390,6 +394,164 @@ body.mobile .page[data-sec="calendar"]{overflow:auto;}
 body.mobile #calGrid{grid-auto-rows:minmax(52px,1fr);}
 body.mobile .recap-spread::before{display:none;}
 @media (max-width:760px){body{overflow:auto;}}
+/* ===================== 책상 첫 화면 ===================== */
+#desk{position:absolute;inset:0;z-index:60;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:30px;}
+.desk-inner{display:flex;gap:min(8vw,90px);align-items:flex-end;flex-wrap:wrap;justify-content:center;}
+.desk-item{display:flex;flex-direction:column;align-items:center;gap:14px;cursor:pointer;transition:transform .15s;}
+.desk-item:active{transform:scale(.96);}
+.desk-item:hover{transform:translateY(-6px);}
+.desk-label{font-family:var(--ui-font);font-size:18px;background:#fff;border:2.5px solid var(--ink);border-radius:12px;
+  padding:6px 16px;box-shadow:0 4px 0 rgba(0,0,0,.15);}
+/* 노트 카드 */
+.desk-note{width:min(230px,60vw);height:min(300px,44vh);background:linear-gradient(145deg,var(--cover),var(--cover-2));
+  border-radius:14px;box-shadow:inset 0 0 0 2px #000,0 18px 40px rgba(0,0,0,.35);position:relative;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:#fff;}
+.dn-band{position:absolute;left:8px;top:12px;bottom:12px;width:13px;background:repeating-linear-gradient(#000 0 8px,#232323 8px 16px);border-radius:7px;}
+.dn-title{font-family:var(--hand-font);font-size:28px;text-shadow:0 2px 0 #000;}
+.dn-edit{position:absolute;top:10px;right:12px;font-family:var(--hand-font);font-size:13px;color:#fff;opacity:.55;cursor:pointer;}
+.dn-sub{font-family:var(--hand-font);font-size:13px;opacity:.7;text-align:center;padding:0 16px;word-break:keep-all;}
+/* 랩탑 카드 (미니) */
+.desk-laptop{width:min(300px,72vw);display:flex;flex-direction:column;align-items:center;}
+.dl-screen{width:100%;aspect-ratio:16/10;background:#fff;border:6px solid var(--ink);border-radius:12px 12px 0 0;border-bottom:none;
+  box-shadow:inset 0 0 0 1px #000;position:relative;overflow:hidden;}
+.dl-dots{display:flex;gap:4px;padding:6px 8px;background:var(--line-soft);border-bottom:1.5px solid var(--ink);}
+.dl-dots i{width:7px;height:7px;border-radius:50%;background:#fff;border:1.5px solid var(--ink);}
+.dl-content{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;height:calc(100% - 22px);}
+.dl-tabs-mini{display:flex;gap:5px;}
+.dl-tabs-mini span{width:26px;height:9px;background:var(--ink);border-radius:3px;opacity:.8;}
+.dl-tabs-mini span:nth-child(2){opacity:.55}.dl-tabs-mini span:nth-child(3){opacity:.4}.dl-tabs-mini span:nth-child(4){opacity:.25}
+.dl-base{width:118%;height:14px;background:linear-gradient(#e0e0e0,#c4c4c4);border:2.5px solid var(--ink);border-radius:0 0 14px 14px;
+  box-shadow:0 8px 18px rgba(0,0,0,.25);position:relative;}
+.dl-base::after{content:"";position:absolute;left:50%;top:2px;transform:translateX(-50%);width:36px;height:4px;background:var(--ink);border-radius:0 0 6px 6px;}
+.desk-hint{font-family:var(--hand-font);font-size:15px;color:#999;}
+#stage.note-open #desk, #stage.laptop-open #desk{display:none;}
+
+/* ===================== 랩탑 화면 ===================== */
+#laptop{display:none;position:absolute;inset:0;z-index:45;flex-direction:column;align-items:center;justify-content:center;padding:2vh 0;}
+#stage.laptop-open #laptop{display:flex;animation:pop .35s ease;}
+.lt-monitor{width:min(1000px,96vw);height:min(620px,86vh);background:#111;border:none;border-radius:16px 16px 4px 4px;
+  padding:12px 12px 0;box-shadow:0 24px 60px rgba(0,0,0,.4);position:relative;display:flex;flex-direction:column;}
+.lt-browser{flex:1;background:var(--paper);border-radius:10px;overflow:hidden;display:flex;flex-direction:column;border:2.5px solid #000;}
+.lt-chrome{background:var(--line-soft);border-bottom:2.5px solid var(--ink);}
+.lt-winbtns{display:flex;gap:6px;padding:7px 10px 0;}
+.lt-winbtns i{width:11px;height:11px;border-radius:50%;border:1.5px solid var(--ink);}
+.lt-winbtns .r{background:#fff}.lt-winbtns .y{background:#fff}.lt-winbtns .g{background:#fff}
+.lt-tabs{display:flex;gap:3px;padding:6px 8px 0;overflow-x:auto;align-items:flex-end;}
+.lt-tab{flex:0 0 auto;padding:8px 14px;background:#e8e8e8;border:2px solid var(--ink);border-bottom:none;
+  border-radius:10px 10px 0 0;cursor:pointer;font-family:var(--ui-font);font-size:13px;white-space:nowrap;
+  box-shadow:inset 0 -3px 6px rgba(0,0,0,.06);}
+.lt-tab.active{background:var(--paper);position:relative;top:2.5px;}
+.lt-tab.home{background:#fff;font-size:15px;padding:8px 12px;}
+.lt-body{flex:1;position:relative;overflow:hidden;}
+.lt-page{position:absolute;inset:0;padding:20px 24px;overflow:auto;display:none;flex-direction:column;}
+.lt-page.show{display:flex;animation:flip .4s ease;}
+.lt-page h2{font-family:var(--ui-font);font-size:24px;margin:0 0 2px;display:flex;align-items:center;gap:10px;}
+.lt-page .desc{font-family:var(--hand-font);font-size:17px;color:#666;margin-bottom:14px;}
+.lt-topbar{position:absolute;top:14px;right:22px;z-index:20;display:flex;gap:7px;}
+.lt-hinge{width:min(1000px,96vw);height:14px;background:linear-gradient(#2a2a2a,#111);border-radius:0 0 6px 6px;}
+.lt-keyboard{width:min(1080px,99vw);height:22px;background:linear-gradient(#dcdcdc,#b8b8b8);border:2.5px solid var(--ink);
+  border-radius:6px 6px 14px 14px;box-shadow:0 12px 24px rgba(0,0,0,.28);position:relative;margin-top:-2px;}
+.lt-trackpad{position:absolute;left:50%;bottom:3px;transform:translateX(-50%);width:70px;height:9px;background:#cfcfcf;border:1.5px solid var(--ink);border-radius:4px;}
+body.mobile .lt-monitor{height:calc(100vh - 90px);border-radius:12px 12px 0 0;padding:8px 8px 0;}
+body.mobile .lt-tab{font-size:11px;padding:7px 9px;}
+body.mobile .lt-keyboard,body.mobile .lt-hinge{display:none;}
+body.mobile #laptop{padding:0;justify-content:flex-end;}
+
+/* ===================== TIME TABLE (요일×시간) ===================== */
+.tt2-head{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:2px;}
+.tt2-table{width:100%;border-collapse:collapse;font-family:var(--hand-font);}
+.tt2-table th,.tt2-table td{border:1.5px solid var(--ink);text-align:center;}
+.tt2-table th{background:var(--ink);color:#fff;font-family:var(--ui-font);font-size:13px;padding:6px 2px;}
+.tt2-table th:first-child{width:52px;}
+.tt2-time{background:#fafafa;font-family:var(--ui-font);font-size:12px;color:#555;width:52px;padding:2px;}
+.tt2-cell{height:34px;cursor:pointer;position:relative;padding:0;vertical-align:top;transition:background .1s;}
+.tt2-cell:hover{background:#f4f4f4;}
+.tt2-sub{width:100%;height:100%;min-height:34px;border-radius:5px;font-size:12px;color:#fff;
+  display:flex;align-items:center;justify-content:center;padding:2px;line-height:1.1;word-break:keep-all;overflow:hidden;}
+/* 과목 편집 모달 */
+.subj-list{display:flex;flex-direction:column;gap:6px;margin:8px 0;}
+.subj-item{display:flex;align-items:center;gap:8px;}
+.subj-swatch{width:26px;height:26px;border-radius:7px;border:2px solid var(--ink);cursor:pointer;flex:0 0 auto;}
+
+/* GOAL */
+.goal-card{border:2.5px solid var(--ink);border-radius:16px;padding:14px 16px;margin-bottom:12px;box-shadow:0 5px 0 rgba(0,0,0,.08);}
+.goal-card h3{margin:0 0 6px;font-size:19px;display:flex;align-items:center;justify-content:space-between;gap:8px;font-family:var(--hand-font);}
+.goal-meta{font-size:13px;color:#888;margin-bottom:8px;}
+.goal-bar{height:16px;background:var(--line);border-radius:9px;overflow:hidden;position:relative;border:2px solid var(--ink);}
+.goal-bar>i{display:block;height:100%;background:var(--ink);border-radius:0;transition:width .3s;}
+.goal-bar .pct{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:11px;font-family:var(--ui-font);
+  color:#fff;mix-blend-mode:difference;}
+.goal-count{display:flex;align-items:center;gap:10px;margin-top:10px;font-family:var(--hand-font);font-size:16px;}
+.goal-count button{width:32px;height:32px;border:2px solid var(--ink);border-radius:9px;background:#fff;cursor:pointer;
+  font-size:18px;box-shadow:0 3px 0 rgba(0,0,0,.1);}
+.goal-count button:active{transform:translateY(2px);box-shadow:none;}
+.goal-count .cnum{font-size:18px;min-width:70px;text-align:center;}
+.goal-done-btn{margin-top:10px;}
+/* 수정모드 입력 */
+.goal-edit-row{display:flex;flex-direction:column;gap:8px;}
+.goal-edit-row .r{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.goal-edit-row .k{font-size:13px;color:#666;min-width:52px;}
+.goal-edit-row input{border:2px solid var(--ink);border-radius:10px;padding:7px 10px;font-size:16px;font-family:var(--hand-font);outline:none;}
+.goal-done-item{display:flex;align-items:center;justify-content:space-between;gap:8px;border:2px solid var(--line);
+  border-radius:12px;padding:10px 12px;margin-bottom:8px;font-family:var(--hand-font);}
+.goal-done-item .gt{text-decoration:line-through;color:#999;font-size:16px;}
+
+/* LECTURE NOTE */
+#lnSidebar{width:220px;flex:0 0 220px;overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column;gap:8px;padding-right:4px;}
+.ln-class{border:2.5px solid var(--ink);border-radius:12px;overflow:hidden;box-shadow:0 4px 0 rgba(0,0,0,.08);}
+.ln-class-head{background:var(--ink);color:#fff;padding:8px 10px;font-family:var(--hand-font);font-size:16px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:6px;}
+.ln-class-head .del{background:none;border:none;color:#fff;opacity:.7;cursor:pointer;font-size:13px;}
+.ln-dates{display:flex;flex-direction:column;}
+.ln-date{padding:7px 12px;font-family:var(--hand-font);font-size:15px;cursor:pointer;border-top:1.5px solid var(--line);}
+.ln-date:hover{background:#f2f2f2;}
+.ln-date.sel{background:var(--ink);color:#fff;}
+.ln-date .mk{font-size:11px;color:#999;}
+.ln-date.sel .mk{color:#ccc;}
+/* 편집기 */
+.ln-toolbar{display:flex;flex-wrap:wrap;gap:4px;align-items:center;padding:8px;border:2.5px solid var(--ink);border-radius:12px 12px 0 0;background:var(--line-soft);border-bottom:none;}
+.ln-toolbar button,.ln-toolbar select{border:2px solid var(--ink);background:#fff;border-radius:8px;cursor:pointer;font-size:14px;padding:4px 8px;box-shadow:0 2px 0 rgba(0,0,0,.1);font-family:var(--ui-font);}
+.ln-toolbar button:active{transform:translateY(2px);box-shadow:none;}
+.ln-toolbar button.on{background:var(--ink);color:#fff;}
+.ln-toolbar .sep{width:1.5px;height:22px;background:#ccc;margin:0 2px;}
+.ln-toolbar select{font-family:var(--hand-font);}
+.ln-page-wrap{flex:1;overflow:auto;border:2.5px solid var(--ink);border-radius:0 0 12px 12px;background:#e8e8e8;padding:16px;display:flex;flex-direction:column;align-items:center;gap:16px;}
+.ln-page{width:100%;max-width:640px;aspect-ratio:1/1.414;background:#fff;box-shadow:0 4px 14px rgba(0,0,0,.15);padding:36px 40px;
+  font-family:var(--hand-font);font-size:16px;line-height:1.7;outline:none;overflow-wrap:break-word;overflow:auto;}
+.ln-page:focus{box-shadow:0 4px 14px rgba(0,0,0,.15),0 0 0 2.5px var(--ink);}
+/* 필기 도구 툴바 */
+.ln-pentools{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:6px 8px;border:2.5px solid var(--ink);border-top:none;border-bottom:none;background:#f4f4f4;}
+.ln-pentools button{border:2px solid var(--ink);background:#fff;border-radius:8px;cursor:pointer;font-size:13px;padding:4px 9px;box-shadow:0 2px 0 rgba(0,0,0,.1);font-family:var(--ui-font);}
+.ln-pentools button:active{transform:translateY(2px);box-shadow:none;}
+.ln-pentools button.on{background:var(--ink);color:#fff;}
+.ln-pen-opts{display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.ln-colors{display:inline-flex;gap:4px;}
+.ln-color{width:22px;height:22px;border-radius:50%;border:2px solid var(--ink);cursor:pointer;box-shadow:0 2px 0 rgba(0,0,0,.1);}
+.ln-color.on{outline:2px solid var(--ink);outline-offset:2px;}
+/* 페이지+캔버스 스택 */
+.ln-page-stack{position:relative;width:100%;max-width:640px;aspect-ratio:1/1.414;}
+.ln-page-label{width:100%;max-width:640px;display:flex;justify-content:space-between;align-items:center;font-family:var(--ui-font);font-size:13px;color:#666;margin-bottom:-8px;}
+.ln-page-stack .ln-page{width:100%;height:100%;max-width:none;aspect-ratio:auto;position:absolute;inset:0;}
+.ln-canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;z-index:2;pointer-events:none;border-radius:0;}
+/* 사진 배경 */
+.ln-bg{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#fff;z-index:0;pointer-events:none;}
+.ln-page-stack .ln-page{z-index:1;background:transparent;}
+.ln-page-stack:has(.ln-bg) .ln-page{background:transparent;}
+/* 텍스트 박스 */
+.ln-boxlayer{position:absolute;inset:0;z-index:3;pointer-events:none;}
+.ln-box{position:absolute;min-width:80px;min-height:40px;border:2px dashed var(--ink);border-radius:8px;background:rgba(255,255,255,.75);pointer-events:auto;box-shadow:0 3px 8px rgba(0,0,0,.12);}
+.ln-box-head{display:flex;justify-content:space-between;align-items:center;background:var(--ink);border-radius:5px 5px 0 0;padding:2px 6px;cursor:grab;}
+.ln-box-head:active{cursor:grabbing;}
+.ln-box-grip{color:#fff;font-size:13px;user-select:none;}
+.ln-box-del{background:none;border:none;color:#fff;cursor:pointer;font-size:12px;opacity:.8;padding:0;}
+.ln-box-body{padding:8px;font-family:var(--hand-font);font-size:15px;line-height:1.5;outline:none;min-height:28px;resize:both;overflow:auto;}
+.ln-page img{max-width:100%;}
+.ln-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:#aaa;font-size:18px;font-family:var(--hand-font);text-align:center;}
+.ln-empty .naru{width:52px;height:52px;opacity:.5;}
+body.mobile #lnSidebar{width:100%;flex:1 1 auto;}
+body.mobile #lnWrap.show-editor #lnSidebar{display:none;}
+body.mobile #lnWrap:not(.show-editor) #lnEditor{display:none;}
+body:not(.mobile) #lnListBtn{display:none;}
+
 </style>
 </head>
 <body>
@@ -397,6 +559,37 @@ body.mobile .recap-spread::before{display:none;}
 <div id="bg"></div>
 
 <div id="stage">
+  <!-- 책상 첫 화면: 노트 + 랩탑 -->
+  <div id="desk">
+    <div class="desk-inner">
+      <div class="desk-item">
+        <div class="desk-note" onclick="openNote()">
+          <div class="dn-band"></div>
+          <div class="dn-edit" onclick="event.stopPropagation();openCoverEdit()">✎ edit</div>
+          <div class="naru" data-col="#ffffff" data-variant="glow" style="width:64px;height:64px"></div>
+          <div class="dn-title" id="dnTitle">my diary</div>
+          <div class="dn-sub">Calendar · To-do · Memo · Diary</div>
+        </div>
+        <div class="desk-label" onclick="openNote()">Note</div>
+      </div>
+      <div class="desk-item" onclick="openLaptop()">
+        <div class="desk-laptop">
+          <div class="dl-screen">
+            <div class="dl-dots"><i></i><i></i><i></i></div>
+            <div class="dl-content">
+              <div class="naru" data-col="#111" data-variant="plain" style="width:38px;height:38px"></div>
+              <div class="dl-tabs-mini"><span></span><span></span><span></span><span></span></div>
+            </div>
+          </div>
+          <div class="dl-base"></div>
+        </div>
+        <div class="desk-label">Laptop</div>
+      </div>
+    </div>
+    <div class="desk-hint" id="deskUser"></div>
+  </div>
+
+  <!-- 노트 -->
   <div id="cover" onclick="openBook()">
     <div class="band"></div>
     <div class="edit-hint" onclick="event.stopPropagation();openCoverEdit()">✎ edit</div>
@@ -410,9 +603,9 @@ body.mobile .recap-spread::before{display:none;}
     <nav id="tabs">
       <div class="tab active" data-sec="calendar" onclick="go('calendar')">Calendar</div>
       <div class="tab" data-sec="todo" onclick="go('todo')">To-do</div>
-      <div class="tab" data-sec="planner" onclick="go('planner')">Planner</div>
       <div class="tab" data-sec="memo" onclick="go('memo')">Memo</div>
       <div class="tab" data-sec="diary" onclick="go('diary')">Diary</div>
+      <div class="tab" data-sec="__desk" onclick="backToDesk()" style="margin-top:auto;background:var(--line-soft)">DESK</div>
     </nav>
 
     <div id="pages">
@@ -450,60 +643,6 @@ body.mobile .recap-spread::before{display:none;}
       </section>
 
       <!-- PLANNER -->
-      <section class="page" data-sec="planner">
-        <div class="pl-head">
-          <h2 style="margin:0"><span class="naru" style="width:26px;height:26px"></span> Study Planner</h2>
-          <div class="pl-nav">
-            <button class="jelly sm" onclick="plMove(-1)">◀</button>
-            <input type="date" id="plDate" onchange="plLoad()" style="font-size:16px;border:2px solid var(--ink);border-radius:10px;padding:5px 8px;">
-            <button class="jelly sm" onclick="plMove(1)">▶</button>
-            <button class="jelly sm" onclick="go('recap')">Recap</button>
-          </div>
-        </div>
-        <div class="pl-top">
-          <div>
-            <div class="pl-field"><span class="lab">YEAR / MONTH / DAY</span><input id="plYmd" placeholder="2026 / 07 / 16"></div>
-            <div class="pl-field" style="margin-top:6px;align-items:flex-start"><span class="lab" style="padding-top:4px">COMMENT</span><textarea id="plComment" placeholder="오늘의 한마디" style="flex:1;min-width:0;border:none;outline:none;font-size:18px;background:transparent;font-family:var(--hand-font);resize:vertical;min-height:52px;line-height:1.5"></textarea></div>
-            <div class="pl-field" style="margin-top:6px"><span class="lab">♫ SONG</span><input id="plSong" placeholder="제목 - 가수"></div>
-          </div>
-          <div>
-            <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:2.5px solid var(--ink);padding-bottom:4px;">
-              <span style="font-size:14px;letter-spacing:1px;">D-DAY</span>
-              <button class="jelly sm" onclick="addDday()">+ add</button>
-            </div>
-            <div class="pl-ddays" id="plDdays" style="margin-top:6px"></div>
-          </div>
-        </div>
-        <div class="pl-body">
-          <div class="pl-col">
-            <h4>TASKS <small>(tap: O·X·△·→)</small></h4>
-            <div id="plTasks"></div>
-            <button class="jelly sm task-add" onclick="addTask()">+ task</button>
-            <div class="pl-memo">
-              <h4 style="margin-top:14px">MEMO</h4>
-              <textarea id="plMemo" placeholder="메모..."></textarea>
-            </div>
-          </div>
-          <div class="pl-col">
-            <h4>TIMETABLE <small>(5am~4am · drag)</small></h4>
-            <div class="tt-wrap" id="plTimetable"></div>
-            <div class="tt-total">Total <b id="plTotal">0h 0m</b></div>
-          </div>
-        </div>
-      </section>
-
-      <!-- RECAP -->
-      <section class="page" data-sec="recap">
-        <div class="pl-head">
-          <h2 style="margin:0"><span class="naru" style="width:26px;height:26px"></span> Monthly Recap</h2>
-          <div class="pl-nav">
-            <input type="month" id="recapMonth" onchange="recapLoad()" style="font-size:16px;border:2px solid var(--ink);border-radius:10px;padding:5px 8px;">
-            <button class="jelly sm" onclick="go('planner')">← Planner</button>
-          </div>
-        </div>
-        <div id="recapBody" style="margin-top:10px"></div>
-      </section>
-
       <!-- MEMO -->
       <section class="page" data-sec="memo">
         <div class="pl-head">
@@ -539,7 +678,7 @@ body.mobile .recap-spread::before{display:none;}
     <button class="jelly" id="installBtn" onclick="installApp()" style="display:none">⬇ Install</button>
     <button class="jelly" id="loginBtn" onclick="fbLogin()">Sign in</button>
     <button class="jelly" onclick="toggleFonts()">Aa Font</button>
-    <button class="jelly round" onclick="closeBook()" title="cover">✕</button>
+    <button class="jelly round" onclick="closeBook()" title="desk">✕</button>
   </div>
 
   <div id="fontPanel">
@@ -548,6 +687,194 @@ body.mobile .recap-spread::before{display:none;}
   </div>
 
   <div id="saveBadge"><span class="naru" style="width:16px;height:16px"></span> saved</div>
+
+<!-- ================= 랩탑 ================= -->
+<div id="laptop">
+  <div class="lt-monitor">
+    <div class="lt-browser">
+      <div class="lt-chrome">
+        <div class="lt-winbtns"><i class="r"></i><i class="y"></i><i class="g"></i></div>
+        <div class="lt-tabs">
+          <div class="lt-tab active" data-lt="timetable" onclick="ltGo('timetable')">TIME TABLE</div>
+          <div class="lt-tab" data-lt="goal" onclick="ltGo('goal')">GOAL</div>
+          <div class="lt-tab" data-lt="planner" onclick="ltGo('planner')">STUDY PLANNER</div>
+          <div class="lt-tab" data-lt="lecture" onclick="ltGo('lecture')">LECTURE NOTE</div>
+          <div class="lt-tab home" onclick="backToDesk()" title="Desk">DESK</div>
+        </div>
+      </div>
+      <div class="lt-body" id="ltPages">
+
+        <!-- TIME TABLE -->
+        <section class="lt-page show" data-lt="timetable">
+          <div class="tt2-head">
+            <h2 style="margin:0"><span class="naru" style="width:24px;height:24px"></span> <span id="tt2Title">Time Table</span></h2>
+            <div class="pl-nav">
+              <select id="tt2Select" onchange="tt2Switch(this.value)" style="font-size:15px;border:2px solid var(--ink);border-radius:10px;padding:5px 8px;font-family:var(--hand-font)"></select>
+              <button class="jelly sm" onclick="tt2New()">+ 새 시간표</button>
+              <button class="jelly sm" onclick="tt2EditMeta()">⚙ 설정</button>
+            </div>
+          </div>
+          <div id="tt2Period" style="font-size:14px;color:#888;margin:2px 0 10px"></div>
+          <div id="tt2Grid" style="flex:1;min-height:0;overflow:auto"></div>
+        </section>
+
+        <!-- GOAL -->
+        <section class="lt-page" data-lt="goal">
+          <div class="pl-head">
+            <h2 style="margin:0"><span class="naru" style="width:24px;height:24px"></span> Goal</h2>
+            <div class="pl-nav">
+              <button class="jelly sm" id="goalModeBtn" onclick="goalToggleMode()">✎ 수정</button>
+              <button class="jelly sm" onclick="goalShowDone()">완료한 목표</button>
+            </div>
+          </div>
+          <div id="goalBody" style="flex:1;min-height:0;overflow:auto"></div>
+        </section>
+
+        <!-- STUDY PLANNER (노트에서 이동) -->
+      <section class="lt-page" data-lt="planner">
+        <div class="pl-head">
+          <h2 style="margin:0"><span class="naru" style="width:26px;height:26px"></span> Study Planner</h2>
+          <div class="pl-nav">
+            <button class="jelly sm" onclick="plMove(-1)">◀</button>
+            <input type="date" id="plDate" onchange="plLoad()" style="font-size:16px;border:2px solid var(--ink);border-radius:10px;padding:5px 8px;">
+            <button class="jelly sm" onclick="plMove(1)">▶</button>
+            <button class="jelly sm" onclick="ltGo('recap')">Recap</button>
+          </div>
+        </div>
+        <div class="pl-top">
+          <div>
+            <div class="pl-field"><span class="lab">YEAR / MONTH / DAY</span><input id="plYmd" placeholder="2026 / 07 / 16"></div>
+            <div class="pl-field" style="margin-top:6px;align-items:flex-start"><span class="lab" style="padding-top:4px">COMMENT</span><textarea id="plComment" placeholder="오늘의 한마디" style="flex:1;min-width:0;border:none;outline:none;font-size:18px;background:transparent;font-family:var(--hand-font);resize:vertical;min-height:52px;line-height:1.5"></textarea></div>
+            <div class="pl-field" style="margin-top:6px"><span class="lab">♫ SONG</span><input id="plSong" placeholder="제목 - 가수"></div>
+          </div>
+          <div>
+            <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:2.5px solid var(--ink);padding-bottom:4px;">
+              <span style="font-size:14px;letter-spacing:1px;">D-DAY</span>
+              <button class="jelly sm" onclick="addDday()">+ add</button>
+            </div>
+            <div class="pl-ddays" id="plDdays" style="margin-top:6px"></div>
+          </div>
+        </div>
+        <div class="pl-body">
+          <div class="pl-col">
+            <h4>TASKS <small>(tap: O·X·△·→)</small></h4>
+            <div id="plTasks"></div>
+            <button class="jelly sm task-add" onclick="addTask()">+ task</button>
+            <div class="pl-memo">
+              <h4 style="margin-top:14px">MEMO</h4>
+              <textarea id="plMemo" placeholder="메모..."></textarea>
+            </div>
+          </div>
+          <div class="pl-col">
+            <h4>TIMETABLE <small>(5am~4am · drag)</small></h4>
+            <div class="tt-wrap" id="plTimetable"></div>
+            <div class="tt-total">Total <b id="plTotal">0h 0m</b></div>
+          </div>
+        </div>
+      </section>
+
+      
+
+        <!-- RECAP -->
+<!-- RECAP -->
+      <section class="lt-page" data-lt="recap">
+        <div class="pl-head">
+          <h2 style="margin:0"><span class="naru" style="width:26px;height:26px"></span> Monthly Recap</h2>
+          <div class="pl-nav">
+            <input type="month" id="recapMonth" onchange="recapLoad()" style="font-size:16px;border:2px solid var(--ink);border-radius:10px;padding:5px 8px;">
+            <button class="jelly sm" onclick="ltGo('planner')">← Planner</button>
+          </div>
+        </div>
+        <div id="recapBody" style="margin-top:10px"></div>
+      </section>
+
+        <!-- LECTURE NOTE -->
+        <section class="lt-page" data-lt="lecture">
+          <div class="pl-head">
+            <h2 style="margin:0"><span class="naru" style="width:24px;height:24px"></span> Lecture Note</h2>
+            <div class="pl-nav">
+              <button class="jelly sm" onclick="lnImportClass()">+ 수업 불러오기</button>
+              <button class="jelly sm" id="lnListBtn" onclick="lnBackToList()">☰ 목록</button>
+            </div>
+          </div>
+          <div id="lnWrap" style="flex:1;display:flex;gap:14px;min-height:0;">
+            <div id="lnSidebar"></div>
+            <div id="lnEditor" style="flex:1;min-width:0;display:flex;flex-direction:column;min-height:0;"></div>
+          </div>
+        </section>
+
+      </div>
+    </div>
+    <div class="lt-topbar">
+      <button class="jelly sm" id="installBtn2" onclick="installApp()" style="display:none">⬇</button>
+      <button class="jelly sm" onclick="toggleFonts()">Aa</button>
+      <button class="jelly sm round" onclick="backToDesk()">✕</button>
+    </div>
+  </div>
+  <div class="lt-hinge"></div>
+  <div class="lt-keyboard"><div class="lt-trackpad"></div></div>
+</div>
+
+</div>
+
+<!-- 과목 색상 선택 -->
+<div class="modal" id="subjColorModal">
+  <div class="box">
+    <h3><span class="naru" style="width:20px;height:20px"></span> 색 고르기</h3>
+    <div id="subjColorGrid" style="display:flex;flex-wrap:wrap;gap:8px;margin:8px 0"></div>
+    <div class="row"><button class="jelly sm" onclick="document.getElementById('subjColorModal').classList.remove('show')">닫기</button></div>
+  </div>
+</div>
+
+<!-- 강의노트: 수업 불러오기 -->
+<div class="modal" id="lnImportModal">
+  <div class="box">
+    <h3><span class="naru" style="width:20px;height:20px"></span> 수업 불러오기</h3>
+    <div style="font-size:13px;color:#888;margin-bottom:8px">시간표에 있는 과목을 고르면, 그 수업이 있는 날짜마다 노트가 만들어져요</div>
+    <div id="lnImportList"></div>
+    <div class="row"><button class="jelly sm" onclick="document.getElementById('lnImportModal').classList.remove('show')">닫기</button></div>
+  </div>
+</div>
+
+<!-- 완료한 목표 -->
+<div class="modal" id="goalDoneModal">
+  <div class="box">
+    <h3><span class="naru" style="width:20px;height:20px"></span> 완료한 목표</h3>
+    <div id="goalDoneList"></div>
+    <div class="row"><button class="jelly sm" onclick="document.getElementById('goalDoneModal').classList.remove('show')">닫기</button></div>
+  </div>
+</div>
+
+<!-- 타임테이블: 과목 선택 -->
+<div class="modal" id="ttSubjModal">
+  <div class="box">
+    <h3><span class="naru" style="width:20px;height:20px"></span> 과목 선택</h3>
+    <div id="ttSubjPick"></div>
+    <div class="row"><button class="jelly sm" onclick="document.getElementById('ttSubjModal').classList.remove('show')">닫기</button></div>
+  </div>
+</div>
+
+<!-- 타임테이블: 설정 -->
+<div class="modal" id="ttMetaModal">
+  <div class="box">
+    <h3><span class="naru" style="width:20px;height:20px"></span> 시간표 설정</h3>
+    <label>시간표 이름</label>
+    <input id="ttMetaName" placeholder="예: 2026 2학기">
+    <label>사용 기간</label>
+    <div style="display:flex;gap:8px;align-items:center">
+      <input id="ttMetaFrom" type="date" style="flex:1">
+      <span>~</span>
+      <input id="ttMetaTo" type="date" style="flex:1">
+    </div>
+    <label style="margin-top:12px">과목 / 일정</label>
+    <div class="subj-list" id="ttSubjList"></div>
+    <button class="jelly sm" onclick="addSubject()">+ 과목 추가</button>
+    <div class="row">
+      <button class="jelly sm" onclick="tt2DeleteTable()">시간표 삭제</button>
+      <button class="jelly sm" onclick="document.getElementById('ttMetaModal').classList.remove('show')">취소</button>
+      <button class="jelly sm" onclick="tt2SaveMeta()">저장 ✿</button>
+    </div>
+  </div>
 </div>
 
 <!-- 표지 편집 -->
@@ -663,8 +990,14 @@ function heartGlow(c){
     <path fill="${c}" opacity="0.6" d="M21 70 L21.8 72.5 L24 73.3 L21.8 74 L21 76.5 L20.2 74 L18 73.3 L20.2 72.5 Z"/>
   </svg>`;
 }
+function heartPlain(c){
+  return `<svg viewBox="0 0 100 100">
+    <path fill="${c}" d="M50 86 C30 70 10 55 10 36 C10 21 21 10 35 10 C42 10 48 14 50 20 C52 14 58 10 65 10 C79 10 90 21 90 36 C90 55 70 70 50 86 Z"/>
+  </svg>`;
+}
 function naruSVG(color,variant){
   if(variant==='glow') return heartGlow(color||'#fff');
+  if(variant==='plain') return heartPlain(color||'#111');
   return variant==='double'?heartDouble(color||'#111'):heartSingle(color||'#111');
 }
 function paintNaru(){document.querySelectorAll('.naru').forEach(n=>{n.innerHTML=naruSVG(n.dataset.col||'#111', n.dataset.variant);});}
@@ -726,19 +1059,897 @@ function setFont(css){document.documentElement.style.setProperty('--hand-font',c
 function toggleFonts(){document.getElementById('fontPanel').classList.toggle('show');}
 
 function go(sec){
-  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.sec===sec||(sec==='recap'&&t.dataset.sec==='planner')));
-  document.querySelectorAll('.page').forEach(p=>p.classList.toggle('show',p.dataset.sec===sec));
-  if(sec!=='recap')DB.save('lastSec',sec);
-  if(sec==='recap')recapLoad();
+  if(sec==='__desk') return;
+  document.querySelectorAll('#tabs .tab').forEach(t=>t.classList.toggle('active',t.dataset.sec===sec));
+  document.querySelectorAll('#pages .page').forEach(p=>p.classList.toggle('show',p.dataset.sec===sec));
+  DB.save('lastSec',sec);
+}
+// 노트 열기 (책상 → 표지 → 펼침)
+function openNote(){
+  const st=document.getElementById('stage');
+  st.classList.remove('laptop-open');
+  st.classList.add('note-open'); // 표지 등장
+  setTimeout(()=>st.classList.add('opened'), 350); // 잠깐 뒤 펼침
 }
 function openBook(){document.getElementById('stage').classList.add('opened');}
-function closeBook(){document.getElementById('stage').classList.remove('opened');}
+function closeBook(){ backToDesk(); }
+// 랩탑 열기
+function openLaptop(){
+  const st=document.getElementById('stage');
+  st.classList.remove('note-open','opened');
+  st.classList.add('laptop-open');
+  ltGo(DB.load('ltLastSec','timetable'));
+}
+// 책상으로 돌아가기
+function backToDesk(){
+  const st=document.getElementById('stage');
+  st.classList.remove('opened','note-open','laptop-open');
+}
+// 랩탑 탭 전환
+function ltGo(sec){
+  document.querySelectorAll('.lt-tab').forEach(t=>t.classList.toggle('active',t.dataset.lt===sec||(sec==='recap'&&t.dataset.lt==='planner')));
+  document.querySelectorAll('.lt-page').forEach(p=>p.classList.toggle('show',p.dataset.lt===sec));
+  if(sec!=='recap')DB.save('ltLastSec',sec);
+  if(sec==='recap')recapLoad();
+  if(sec==='timetable')tt2Render();
+  if(sec==='goal')goalRender();
+  if(sec==='lecture')lnRender();
+  if(sec==='planner')plLoad&&plLoad();
+}
+
+/* ===================== TIME TABLE ===================== */
+const TT2_DAYS=['월','화','수','목','금','토','일'];
+const TT2_HOURS=[]; for(let h=8;h<=23;h++)TT2_HOURS.push(h); // 08:00~23:00 (~24:00)
+const SUBJ_COLORS=[
+  // 무채색 (첨부 gray 팔레트)
+  '#f1f3f5','#dee2e6','#adb5bd','#868e96','#495057','#343a40','#212529',
+  // 파랑 계열 (첨부 blue 팔레트)
+  '#90caf9','#42a5f5','#2196f3','#1e88e5','#1565c0','#0d47a1',
+  // 컬러풀
+  '#e74c3c','#e67e22','#f1c40f','#27ae60','#16a085','#2980b9','#8e44ad','#c2185b','#00897b','#5d4037'
+];
+function tt2All(){ return DB.load('timetables', []); } // [{id,name,from,to,cells:{'day-hour':subjIdx}, subjects:[{name,color}]}]
+function tt2SaveAll(l){ DB.save('timetables', l); }
+function tt2Cur(){ const l=tt2All(); const id=DB.load('ttCurId',null); return l.find(t=>t.id===id) || l[0] || null; }
+function tt2NewObj(name){ return {id:'tt'+Date.now(), name:name||'새 시간표', from:'', to:'', subjects:[], cells:{}}; }
+
+function tt2New(){
+  const l=tt2All(); const t=tt2NewObj('시간표 '+(l.length+1)); l.push(t); tt2SaveAll(l);
+  DB.save('ttCurId',t.id); tt2Render();
+}
+function tt2Switch(id){ DB.save('ttCurId',id); tt2Render(); }
+
+function tt2Render(){
+  const grid=document.getElementById('tt2Grid'); if(!grid) return;
+  const l=tt2All();
+  const sel=document.getElementById('tt2Select');
+  if(!l.length){
+    sel.innerHTML='';
+    document.getElementById('tt2Title').textContent='Time Table';
+    document.getElementById('tt2Period').textContent='';
+    document.getElementById('tt2Grid').innerHTML='<div style="text-align:center;color:#aaa;font-size:18px;padding:40px">시간표가 없어요.<br>+ 새 시간표를 만들어보세요!</div>';
+    return;
+  }
+  const cur=tt2Cur()||l[0];
+  DB.save('ttCurId',cur.id);
+  sel.innerHTML=l.map(t=>`<option value="${t.id}" ${t.id===cur.id?'selected':''}>${(t.name||'').replace(/</g,'&lt;')}</option>`).join('');
+  document.getElementById('tt2Title').textContent=cur.name||'Time Table';
+  document.getElementById('tt2Period').textContent=(cur.from||cur.to)?`기간: ${cur.from||'?'} ~ ${cur.to||'?'}`:'기간 미설정';
+  // 격자
+  let html='<table class="tt2-table"><thead><tr><th>시간</th>'+TT2_DAYS.map(d=>`<th>${d}</th>`).join('')+'</tr></thead><tbody>';
+  TT2_HOURS.forEach(h=>{
+    html+=`<tr><td class="tt2-time">${String(h).padStart(2,'0')}:00</td>`;
+    TT2_DAYS.forEach((d,di)=>{
+      const key=di+'-'+h;
+      const si=cur.cells[key];
+      const subj=(si!=null&&cur.subjects[si])?cur.subjects[si]:null;
+      html+=`<td class="tt2-cell" onclick="tt2CellClick(${di},${h})">${subj?`<div class="tt2-sub" style="background:${subj.color}">${(subj.name||'').replace(/</g,'&lt;')}</div>`:''}</td>`;
+    });
+    html+='</tr>';
+  });
+  html+='</tbody></table>';
+  document.getElementById('tt2Grid').innerHTML=html;
+}
+
+// 셀 클릭 → 과목 선택 팝업
+let tt2Sel={di:null,h:null};
+function tt2CellClick(di,h){
+  const cur=tt2Cur(); if(!cur)return;
+  if(!cur.subjects.length){ alert('먼저 ⚙ 설정에서 과목을 추가해주세요!'); tt2EditMeta(); return; }
+  tt2Sel={di,h};
+  const key=di+'-'+h;
+  const curSi=cur.cells[key];
+  // 과목 선택 모달 열기
+  const box=document.getElementById('ttSubjPick');
+  box.innerHTML=`<div style="font-size:15px;margin-bottom:8px">${TT2_DAYS[di]}요일 ${String(h).padStart(2,'0')}:00 에 넣을 과목</div>`+
+    cur.subjects.map((s,i)=>`<div class="subj-item"><button class="jelly sm" style="flex:1;text-align:left;background:${s.color};color:#fff" onclick="tt2PutSubject(${i})">${(s.name||'').replace(/</g,'&lt;')}</button></div>`).join('')+
+    `<div class="subj-item" style="margin-top:6px"><button class="jelly sm" style="flex:1" onclick="tt2PutSubject(null)">✕ 비우기</button></div>`;
+  document.getElementById('ttSubjModal').classList.add('show');
+}
+function tt2PutSubject(si){
+  const l=tt2All(); const cur=l.find(t=>t.id===DB.load('ttCurId',null)); if(!cur)return;
+  const key=tt2Sel.di+'-'+tt2Sel.h;
+  if(si==null) delete cur.cells[key]; else cur.cells[key]=si;
+  tt2SaveAll(l); document.getElementById('ttSubjModal').classList.remove('show'); tt2Render();
+}
+
+// ⚙ 설정: 이름/기간/과목 편집
+function tt2EditMeta(){
+  const cur=tt2Cur(); if(!cur){ tt2New(); return; }
+  document.getElementById('ttMetaName').value=cur.name||'';
+  document.getElementById('ttMetaFrom').value=cur.from||'';
+  document.getElementById('ttMetaTo').value=cur.to||'';
+  renderSubjects();
+  document.getElementById('ttMetaModal').classList.add('show');
+}
+function renderSubjects(){
+  const cur=tt2Cur(); if(!cur)return;
+  document.getElementById('ttSubjList').innerHTML=cur.subjects.map((s,i)=>`
+    <div class="subj-item">
+      <div class="subj-swatch" style="background:${s.color}" onclick="openSubjColor(${i})" title="색 고르기"></div>
+      <input class="jd-in" style="flex:1" value="${(s.name||'').replace(/"/g,'&quot;')}" oninput="setSubjName(${i},this.value)" placeholder="과목/일정 이름">
+      <button class="dday-del" onclick="delSubject(${i})">✕</button>
+    </div>`).join('') || '<div style="color:#aaa;font-size:14px">아직 과목이 없어요</div>';
+}
+function addSubject(){ const l=tt2All(); const cur=l.find(t=>t.id===DB.load('ttCurId',null)); if(!cur)return;
+  cur.subjects.push({name:'',color:SUBJ_COLORS[cur.subjects.length%SUBJ_COLORS.length]}); tt2SaveAll(l); renderSubjects(); }
+function setSubjName(i,v){ const l=tt2All(); const cur=l.find(t=>t.id===DB.load('ttCurId',null)); if(!cur)return; cur.subjects[i].name=v; tt2SaveAll(l); }
+function cycleSubjColor(i){ const l=tt2All(); const cur=l.find(t=>t.id===DB.load('ttCurId',null)); if(!cur)return;
+  const idx=SUBJ_COLORS.indexOf(cur.subjects[i].color); cur.subjects[i].color=SUBJ_COLORS[(idx+1)%SUBJ_COLORS.length]; tt2SaveAll(l); renderSubjects(); }
+let subjColorIdx=null;
+function openSubjColor(i){
+  subjColorIdx=i;
+  const box=document.getElementById('subjColorGrid');
+  box.innerHTML=SUBJ_COLORS.map(c=>`<div class="subj-swatch" style="background:${c};width:32px;height:32px" onclick="pickSubjColor('${c}')"></div>`).join('');
+  document.getElementById('subjColorModal').classList.add('show');
+}
+function pickSubjColor(c){
+  const l=tt2All(); const cur=l.find(t=>t.id===DB.load('ttCurId',null));
+  if(cur&&cur.subjects[subjColorIdx]){ cur.subjects[subjColorIdx].color=c; tt2SaveAll(l); renderSubjects(); }
+  document.getElementById('subjColorModal').classList.remove('show');
+}
+function delSubject(i){ const l=tt2All(); const cur=l.find(t=>t.id===DB.load('ttCurId',null)); if(!cur)return;
+  cur.subjects.splice(i,1);
+  // 이 과목을 쓰던 셀 정리 + 인덱스 밀림 보정
+  const newCells={};
+  Object.entries(cur.cells).forEach(([k,si])=>{ if(si===i)return; newCells[k]=si>i?si-1:si; });
+  cur.cells=newCells;
+  tt2SaveAll(l); renderSubjects(); }
+function tt2SaveMeta(){
+  const l=tt2All(); const cur=l.find(t=>t.id===DB.load('ttCurId',null)); if(!cur)return;
+  cur.name=document.getElementById('ttMetaName').value;
+  cur.from=document.getElementById('ttMetaFrom').value;
+  cur.to=document.getElementById('ttMetaTo').value;
+  tt2SaveAll(l); document.getElementById('ttMetaModal').classList.remove('show'); tt2Render();
+}
+function tt2DeleteTable(){
+  if(!confirm('이 시간표를 삭제할까요?'))return;
+  let l=tt2All(); const id=DB.load('ttCurId',null); l=l.filter(t=>t.id!==id); tt2SaveAll(l);
+  DB.save('ttCurId', l.length?l[0].id:null);
+  document.getElementById('ttMetaModal').classList.remove('show'); tt2Render();
+}
+
+/* ===================== GOAL ===================== */
+let goalMode='view'; // view | edit
+function goalAll(){ return DB.load('goals', []); } // [{id,title,total,current,due,done}]
+function goalSave(l){ DB.save('goals', l); }
+function goalToggleMode(){ goalMode=(goalMode==='view')?'edit':'view'; goalRender(); }
+
+function goalRender(){
+  const body=document.getElementById('goalBody'); if(!body)return;
+  document.getElementById('goalModeBtn').textContent=(goalMode==='edit')?'👁 보기':'✎ 수정';
+  const list=goalAll().filter(g=>!g.done);
+  if(goalMode==='edit'){
+    body.innerHTML=list.map(g=>goalEditCard(g)).join('')+
+      `<button class="jelly sm" style="margin-top:8px" onclick="goalAdd()">+ 목표 추가</button>`;
+  }else{
+    if(!list.length){
+      body.innerHTML='<div style="text-align:center;color:#aaa;font-size:18px;padding:40px">진행 중인 목표가 없어요.<br>✎ 수정에서 목표를 추가해보세요!</div>';
+      return;
+    }
+    body.innerHTML=list.map(g=>goalViewCard(g)).join('');
+  }
+}
+function goalPct(g){ const t=+g.total||0, c=+g.current||0; return t>0?Math.min(100,Math.round(c/t*100)):0; }
+function goalDdayText(due){ if(!due)return''; const t=new Date(due);t.setHours(0,0,0,0);
+  const now=new Date();now.setHours(0,0,0,0);const diff=Math.round((t-now)/86400000);
+  return diff===0?'D-DAY':(diff>0?'D-'+diff:'기한 지남 D+'+(-diff)); }
+
+function goalViewCard(g){
+  const pct=goalPct(g);
+  return `<div class="goal-card">
+    <h3><span>${(g.title||'제목 없음').replace(/</g,'&lt;')}</span></h3>
+    ${g.due?`<div class="goal-meta">기한: ${g.due} · ${goalDdayText(g.due)}</div>`:''}
+    <div class="goal-bar"><i style="width:${pct}%"></i><div class="pct">${pct}%</div></div>
+    <div class="goal-count">
+      <button onclick="goalStep('${g.id}',-1)">−</button>
+      <span class="cnum">${+g.current||0} / ${+g.total||0}</span>
+      <button onclick="goalStep('${g.id}',1)">+</button>
+      <button class="jelly sm goal-done-btn" style="margin-left:auto" onclick="goalComplete('${g.id}')">✓ 완료</button>
+    </div>
+  </div>`;
+}
+function goalEditCard(g){
+  return `<div class="goal-card"><div class="goal-edit-row">
+    <div class="r"><span class="k">목표</span><input style="flex:1" value="${(g.title||'').replace(/"/g,'&quot;')}" oninput="goalSet('${g.id}','title',this.value)" placeholder="목표 이름"></div>
+    <div class="r"><span class="k">진행</span>
+      <input type="number" min="0" style="width:80px" value="${+g.current||0}" onchange="goalSet('${g.id}','current',this.value)"> /
+      <input type="number" min="1" style="width:80px" value="${+g.total||1}" onchange="goalSet('${g.id}','total',this.value)"> 개
+    </div>
+    <div class="r"><span class="k">기한</span><input type="date" value="${g.due||''}" onchange="goalSet('${g.id}','due',this.value)"></div>
+    <div class="r"><button class="dday-del" onclick="goalDelete('${g.id}')">✕ 삭제</button></div>
+  </div></div>`;
+}
+function goalAdd(){ const l=goalAll(); l.push({id:'g'+Date.now(),title:'',total:1,current:0,due:'',done:false}); goalSave(l); goalRender(); }
+function goalSet(id,k,v){ const l=goalAll(); const g=l.find(x=>x.id===id); if(!g)return;
+  g[k]=(k==='total'||k==='current')?(+v||0):v; goalSave(l); if(k==='current'||k==='total')goalRender(); }
+function goalStep(id,d){ const l=goalAll(); const g=l.find(x=>x.id===id); if(!g)return;
+  g.current=Math.max(0,Math.min(+g.total||0,(+g.current||0)+d)); goalSave(l); goalRender(); }
+function goalComplete(id){ const l=goalAll(); const g=l.find(x=>x.id===id); if(!g)return;
+  g.done=true; g.doneAt=Date.now(); goalSave(l); goalRender(); }
+function goalDelete(id){ let l=goalAll(); l=l.filter(x=>x.id!==id); goalSave(l); goalRender(); }
+
+// 완료한 목표 목록 (모달)
+function goalShowDone(){
+  const done=goalAll().filter(g=>g.done).sort((a,b)=>(b.doneAt||0)-(a.doneAt||0));
+  const box=document.getElementById('goalDoneList');
+  box.innerHTML = done.length ? done.map(g=>`
+    <div class="goal-done-item">
+      <span class="gt">${(g.title||'제목 없음').replace(/</g,'&lt;')}</span>
+      <span style="display:flex;gap:6px">
+        <button class="jelly sm" onclick="goalRestore('${g.id}')">되돌리기</button>
+        <button class="dday-del" onclick="goalDelete2('${g.id}')">✕</button>
+      </span>
+    </div>`).join('') : '<div style="color:#aaa;font-size:15px;padding:10px">아직 완료한 목표가 없어요.</div>';
+  document.getElementById('goalDoneModal').classList.add('show');
+}
+function goalRestore(id){ const l=goalAll(); const g=l.find(x=>x.id===id); if(g){g.done=false;goalSave(l);} goalShowDone(); goalRender(); }
+function goalDelete2(id){ let l=goalAll(); l=l.filter(x=>x.id!==id); goalSave(l); goalShowDone(); }
+
+/* ===================== LECTURE NOTE ===================== */
+// 저장 구조: lectures = [{id, name, dates:[YYYY-MM-DD...]}], 노트 본문은 lnNote_<id>_<date>
+function lnClasses(){ return DB.load('lectures', []); }
+function lnClassesSave(l){ DB.save('lectures', l); }
+let lnSel={cid:null,date:null};
+
+// 요일 인덱스 → 시간표에서 이 수업이 어느 요일에 있는지 찾기
+function lnImportClass(){
+  const tables=tt2All();
+  if(!tables.length){ alert('먼저 TIME TABLE에서 시간표와 과목을 만들어주세요!'); return; }
+  // 모든 시간표의 과목을 모아서 선택지 구성
+  const opts=[];
+  tables.forEach(t=>{
+    (t.subjects||[]).forEach((s,si)=>{
+      // 이 과목이 배치된 요일들
+      const days=new Set();
+      Object.entries(t.cells||{}).forEach(([k,idx])=>{ if(idx===si){ days.add(+k.split('-')[0]); } });
+      if(days.size && s.name){
+        opts.push({tableId:t.id, tableName:t.name, subjName:s.name, color:s.color,
+          days:[...days], from:t.from, to:t.to});
+      }
+    });
+  });
+  if(!opts.length){ alert('시간표에 배치된 과목이 없어요. TIME TABLE에서 과목을 격자에 넣어주세요!'); return; }
+  // 선택 모달
+  const box=document.getElementById('lnImportList');
+  box.innerHTML=opts.map((o,i)=>{
+    const dayNames=o.days.sort().map(d=>TT2_DAYS[d]).join('·');
+    const period=(o.from||o.to)?`${o.from||'?'}~${o.to||'?'}`:'기간 미설정';
+    return `<div class="subj-item"><button class="jelly sm" style="flex:1;text-align:left;background:${o.color};color:#fff" onclick="lnDoImport(${i})">
+      ${o.subjName.replace(/</g,'&lt;')} <span style="opacity:.8;font-size:12px">(${o.tableName} · ${dayNames} · ${period})</span></button></div>`;
+  }).join('');
+  window._lnImportOpts=opts;
+  document.getElementById('lnImportModal').classList.add('show');
+}
+function lnDoImport(i){
+  const o=window._lnImportOpts[i]; if(!o)return;
+  if(!o.from||!o.to){ alert('이 시간표에 사용 기간(from~to)이 없어요. TIME TABLE ⚙설정에서 기간을 넣어주세요!'); return; }
+  // 기간 안에서 해당 요일에 맞는 날짜 모두 생성
+  const dates=[];
+  let cur=new Date(o.from), end=new Date(o.to);
+  cur.setHours(0,0,0,0); end.setHours(0,0,0,0);
+  let guard=0;
+  while(cur<=end && guard<400){
+    const dow=(cur.getDay()+6)%7; // 월=0
+    if(o.days.includes(dow)) dates.push(localYmd(cur));
+    cur.setDate(cur.getDate()+1); guard++;
+  }
+  const l=lnClasses();
+  const id='lc'+Date.now();
+  l.push({id, name:o.subjName, color:o.color, dates});
+  lnClassesSave(l);
+  document.getElementById('lnImportModal').classList.remove('show');
+  lnSel={cid:id, date:dates[0]||null};
+  lnRender();
+}
+
+function lnRender(){
+  const sb=document.getElementById('lnSidebar'); if(!sb)return;
+  const l=lnClasses();
+  if(!l.length){
+    sb.innerHTML='<div style="color:#aaa;font-size:14px;padding:8px">아직 불러온 수업이 없어요.<br>+ 수업 불러오기를 눌러보세요!</div>';
+    document.getElementById('lnEditor').innerHTML='<div class="ln-empty"><span class="naru"></span>수업을 불러오면<br>날짜별 노트가 생겨요</div>';paintNaru();
+    return;
+  }
+  sb.innerHTML=l.map(c=>`
+    <div class="ln-class">
+      <div class="ln-class-head">
+        <span onclick="lnToggleClass('${c.id}')" style="flex:1;cursor:pointer">${(c.name||'').replace(/</g,'&lt;')}</span>
+        <button class="jelly sm" style="padding:2px 6px;font-size:11px" onclick="lnExportClass('${c.id}')" title="이 수업 PDF">PDF</button>
+        <button class="del" onclick="lnDelClass('${c.id}')">✕</button>
+      </div>
+      <div class="ln-dates" id="lndates-${c.id}" style="${c.collapsed?'display:none':''}">
+        ${(c.dates||[]).map(d=>{
+          const nt=DB.load('lnNote_'+c.id+'_'+d,null);
+          let written=false;
+          if(nt){ const ps=nt.pages||[{html:nt.html,draw:nt.draw}];
+            written=ps.some(p=>(p.html&&p.html.replace(/<[^>]*>/g,'').trim())||p.draw); }
+          return `<div class="ln-date ${lnSel.cid===c.id&&lnSel.date===d?'sel':''}" onclick="lnOpen('${c.id}','${d}')">
+            ${d} <span class="mk">${written?'✎':''}</span></div>`;
+        }).join('')}
+      </div>
+    </div>`).join('');
+  lnRenderEditor();
+}
+function lnToggleClass(cid){ const l=lnClasses(); const c=l.find(x=>x.id===cid); if(c){c.collapsed=!c.collapsed;lnClassesSave(l);lnRender();} }
+function lnDelClass(cid){ if(!confirm('이 수업과 노트를 모두 삭제할까요?'))return;
+  let l=lnClasses(); l=l.filter(x=>x.id!==cid); lnClassesSave(l);
+  if(lnSel.cid===cid)lnSel={cid:null,date:null}; lnRender(); }
+function lnOpen(cid,date){ lnSel={cid,date}; lnRender();
+  if(document.body.classList.contains('mobile'))document.getElementById('lnWrap').classList.add('show-editor'); }
+function lnBackToList(){ document.getElementById('lnWrap').classList.remove('show-editor'); }
+
+const LN_FONTS=[
+  {n:'가에구',v:"'Gaegu',cursive"},{n:'주아',v:"'Jua',sans-serif"},{n:'도현',v:"'Do Hyeon',sans-serif"},
+  {n:'나눔펜',v:"'Nanum Pen Script',cursive"},{n:'명조',v:"serif"},{n:'고딕',v:"sans-serif"},
+  {n:'그리운',v:"'Griun',serif"},{n:'동글',v:"'Dongle',sans-serif"},
+];
+function lnRenderEditor(){
+  const ed=document.getElementById('lnEditor');
+  if(!lnSel.cid||!lnSel.date){ ed.innerHTML='<div class="ln-empty"><span class="naru"></span>왼쪽에서 날짜를 선택하세요</div>';paintNaru();return; }
+  const key='lnNote_'+lnSel.cid+'_'+lnSel.date;
+  const note=DB.load(key,{html:'',draw:''});
+  const cls=lnClasses().find(c=>c.id===lnSel.cid);
+  ed.innerHTML=`
+    <div class="ln-toolbar">
+      <select onchange="lnCmd('fontName',this.value)" title="글꼴">${LN_FONTS.map(f=>`<option value="${f.v}">${f.n}</option>`).join('')}</select>
+      <select onchange="lnFontSize(this.value)" title="글씨 크기">
+        <option value="10">10</option><option value="12">12</option><option value="14">14</option>
+        <option value="16" selected>16</option><option value="18">18</option><option value="20">20</option>
+        <option value="24">24</option><option value="28">28</option><option value="32">32</option><option value="40">40</option>
+      </select>
+      <span class="sep"></span>
+      <button onclick="lnCmd('bold')" title="굵게"><b>B</b></button>
+      <button onclick="lnCmd('italic')" title="기울임"><i>I</i></button>
+      <button onclick="lnCmd('underline')" title="밑줄"><u>U</u></button>
+      <button onclick="lnCmd('strikeThrough')" title="취소선"><s>S</s></button>
+      <button onclick="lnHighlight()" title="형광펜 (글자 강조)" style="background:#fff59d">🖍</button>
+      <button onclick="lnHighlightOff()" title="형광펜 지우기" style="background:#fff">🖍✕</button>
+      <span class="sep"></span>
+      <button onclick="lnCmd('justifyLeft')" title="왼쪽">⇤</button>
+      <button onclick="lnCmd('justifyCenter')" title="가운데">≡</button>
+      <button onclick="lnCmd('justifyRight')" title="오른쪽">⇥</button>
+      <button onclick="lnCmd('justifyFull')" title="양쪽">☰</button>
+      <span class="sep"></span>
+      <button onclick="lnUndo()" title="되돌리기 (Ctrl+Z)">↶</button>
+      <button onclick="lnRedo()" title="다시하기 (Ctrl+Shift+Z)">↷</button>
+      <span class="sep"></span>
+      <button onclick="lnInsertImage()" title="그림 넣기">🖼</button>
+      <button onclick="lnSetBg()" title="사진 배경 깔기">🌄</button>
+      <button onclick="lnClearBg()" title="배경 지우기">🌄✕</button>
+      <button onclick="lnAddBox()" title="텍스트 박스">🔤</button>
+      <button onclick="lnExportOne()" title="이 페이지 PDF">PDF</button>
+    </div>
+    <div class="ln-pentools" id="lnPenTools">
+      <button id="lnPenToggle" onclick="lnTogglePen()" title="펜으로 필기 (손가락은 인식 안 됨)">✏️ 펜</button>
+      <span class="ln-pen-opts" id="lnPenOpts" style="display:none">
+        <button class="lnp-mode on" data-mode="pen" onclick="lnPenMode('pen')">펜</button>
+        <button class="lnp-mode" data-mode="highlighter" onclick="lnPenMode('highlighter')" style="background:#fff59d">형광</button>
+        <button class="lnp-mode" data-mode="eraser" onclick="lnPenMode('eraser')">지우개</button>
+        <span class="sep"></span>
+        <span class="ln-colors" id="lnColors"></span>
+        <span class="sep"></span>
+        <span style="font-size:12px;color:#666">굵기</span>
+        <input type="range" id="lnPenWidth" min="1" max="16" value="3" oninput="lnPenSet('width',this.value)" style="width:80px">
+        <span class="sep"></span>
+        <button onclick="lnClearDraw()" title="필기 전체 지우기">🗑 필기삭제</button>
+      </span>
+    </div>
+    <div class="ln-pentools" id="lnImgSizeBar" style="display:none">
+      <span style="font-size:13px;color:#555">이미지 크기</span>
+      <input type="range" id="lnImgSizeRange" min="10" max="100" value="50" oninput="lnImgResize(this.value)" style="width:140px">
+      <span id="lnImgSizeVal" style="font-size:13px;min-width:40px">50%</span>
+      <button onclick="lnImgDelete()" title="이미지 삭제">🗑</button>
+      <button onclick="lnImgResizeDone()">완료</button>
+    </div>
+    <div class="ln-page-wrap" id="lnPageWrap">
+      PAGES_HERE
+      <button class="jelly sm" onclick="lnAddPage()" style="margin:4px auto 8px">+ 페이지 추가</button>
+    </div>`;
+  lnRenderPages();
+}
+
+/* ===== 다중 페이지 ===== */
+function lnGetNote(){
+  const key='lnNote_'+lnSel.cid+'_'+lnSel.date;
+  let note=DB.load(key,null);
+  if(!note) return {pages:[{html:'',draw:'',bg:'',boxes:[]}]};
+  if(!note.pages){ return {pages:[{html:note.html||'',draw:note.draw||'',bg:'',boxes:[]}]}; }
+  if(!note.pages.length) note.pages=[{html:'',draw:'',bg:'',boxes:[]}];
+  note.pages.forEach(p=>{ if(!p.boxes)p.boxes=[]; if(p.bg===undefined)p.bg=''; });
+  return note;
+}
+function lnRenderPages(){
+  const note=lnGetNote();
+  const wrap=document.getElementById('lnPageWrap');
+  const pagesHTML=note.pages.map((p,i)=>`
+    <div class="ln-page-label">
+      <span>페이지 ${i+1} / ${note.pages.length}</span>
+      ${note.pages.length>1?`<button class="jelly sm" onclick="lnDelPage(${i})" title="이 페이지 삭제">🗑 페이지 삭제</button>`:''}
+    </div>
+    <div class="ln-page-stack" data-pi="${i}">
+      ${p.bg?`<img class="ln-bg" src="${p.bg}">`:''}
+      <div class="ln-page" id="lnPage${i}" contenteditable="true" oninput="lnSaveNote()">${p.html||''}</div>
+      <canvas class="ln-canvas" id="lnCanvas${i}"></canvas>
+      <div class="ln-boxlayer" id="lnBoxLayer${i}">${(p.boxes||[]).map((b,bi)=>lnBoxHTML(i,bi,b)).join('')}</div>
+    </div>`).join('');
+  if(wrap.innerHTML.includes('PAGES_HERE')){
+    wrap.innerHTML=wrap.innerHTML.replace('PAGES_HERE',pagesHTML);
+  }else{
+    const btn=wrap.querySelector('button');
+    wrap.innerHTML=pagesHTML;
+    if(btn)wrap.appendChild(btn);
+  }
+  note.pages.forEach((p,i)=>lnInitCanvas(i,p.draw||''));
+  document.querySelectorAll('#lnPageWrap .ln-page').forEach((pg,i)=>{
+    pg.addEventListener('focus',()=>{ lnCurFocusPage=i; });
+    // 이미지 클릭 → 크기 조절 (위임: 저장 후에도 항상 작동)
+    pg.addEventListener('click',e=>{
+      if(e.target.tagName==='IMG' && e.target.classList.contains('ln-img')){
+        lnCurFocusPage=i; lnPickImg(e.target);
+      }
+    });
+  });
+  lnSetupBoxDrag();
+}
+function lnBoxHTML(pi,bi,b){
+  return `<div class="ln-box" data-pi="${pi}" data-bi="${bi}" style="left:${b.x||10}%;top:${b.y||10}%;width:${b.w||40}%">
+    <div class="ln-box-head"><span class="ln-box-grip">⠿</span><button class="ln-box-del" onclick="event.stopPropagation();lnDelBox(${pi},${bi})">✕</button></div>
+    <div class="ln-box-body" contenteditable="true" oninput="lnBoxEdit(${pi},${bi},this.innerHTML)">${b.html||''}</div>
+  </div>`;
+}
+function lnAddPage(){
+  const key='lnNote_'+lnSel.cid+'_'+lnSel.date;
+  const note=lnGetNote();
+  note.pages.push({html:'',draw:'',bg:'',boxes:[]});
+  DB.save(key,note);
+  lnRenderPages();
+}
+function lnDelPage(i){
+  const note=lnGetNote();
+  if(note.pages.length<=1){ alert('마지막 페이지는 삭제할 수 없어요.'); return; }
+  if(!confirm('페이지 '+(i+1)+'을(를) 삭제할까요? (글자·필기·사진 모두 지워져요)'))return;
+  lnPushNoteHistory(); // 되돌리기 가능하게
+  note.pages.splice(i,1);
+  DB.save('lnNote_'+lnSel.cid+'_'+lnSel.date,note);
+  if(lnCurFocusPage>=note.pages.length)lnCurFocusPage=note.pages.length-1;
+  lnRenderPages();
+}
+/* 사진 배경 */
+function lnSetBg(){
+  const inp=document.createElement('input');inp.type='file';inp.accept='image/*';
+  inp.onchange=()=>{ const f=inp.files[0];if(!f)return;
+    const reader=new FileReader();
+    reader.onload=e=>{
+      const img=new Image();
+      img.onload=()=>{
+        const max=1400;let{width:w,height:h}=img;
+        if(w>max||h>max){const r=Math.min(max/w,max/h);w=w*r|0;h=h*r|0;}
+        const cv=document.createElement('canvas');cv.width=w;cv.height=h;
+        cv.getContext('2d').drawImage(img,0,0,w,h);
+        const note=lnGetNote();
+        note.pages[lnCurFocusPage].bg=cv.toDataURL('image/jpeg',0.75);
+        DB.save('lnNote_'+lnSel.cid+'_'+lnSel.date,note);
+        lnRenderPages();
+      };
+      img.src=e.target.result;
+    };
+    reader.readAsDataURL(f);
+  };
+  inp.click();
+}
+function lnClearBg(){
+  const note=lnGetNote();
+  if(!note.pages[lnCurFocusPage].bg){ alert('이 페이지엔 배경 사진이 없어요.'); return; }
+  if(!confirm('이 페이지의 배경 사진을 지울까요?'))return;
+  note.pages[lnCurFocusPage].bg='';
+  DB.save('lnNote_'+lnSel.cid+'_'+lnSel.date,note);
+  lnRenderPages();
+}
+/* 텍스트 박스 */
+let lnNoteHist=[], lnNoteRedo=[];
+function lnPushNoteHistory(){
+  const key='lnNote_'+lnSel.cid+'_'+lnSel.date;
+  const cur=DB.load(key,null);
+  lnNoteHist.push(JSON.stringify(cur));
+  if(lnNoteHist.length>20)lnNoteHist.shift();
+  lnNoteRedo=[];
+}
+function lnNoteUndo(){
+  if(!lnNoteHist.length) return false;
+  const key='lnNote_'+lnSel.cid+'_'+lnSel.date;
+  lnNoteRedo.push(JSON.stringify(DB.load(key,null)));
+  const prev=lnNoteHist.pop();
+  DB.save(key, prev?JSON.parse(prev):null);
+  lnRenderPages();
+  return true;
+}
+function lnNoteRedoFn(){
+  if(!lnNoteRedo.length) return false;
+  const key='lnNote_'+lnSel.cid+'_'+lnSel.date;
+  lnNoteHist.push(JSON.stringify(DB.load(key,null)));
+  const next=lnNoteRedo.pop();
+  DB.save(key, next?JSON.parse(next):null);
+  lnRenderPages();
+  return true;
+}
+function lnAddBox(){
+  lnPushNoteHistory();
+  const note=lnGetNote();
+  note.pages[lnCurFocusPage].boxes=note.pages[lnCurFocusPage].boxes||[];
+  note.pages[lnCurFocusPage].boxes.push({x:12,y:12,w:40,html:''});
+  DB.save('lnNote_'+lnSel.cid+'_'+lnSel.date,note);
+  lnRenderPages();
+}
+function lnBoxEdit(pi,bi,html){
+  const note=lnGetNote();
+  if(note.pages[pi]&&note.pages[pi].boxes&&note.pages[pi].boxes[bi]){
+    note.pages[pi].boxes[bi].html=html;
+    DB.save('lnNote_'+lnSel.cid+'_'+lnSel.date,note);
+  }
+}
+function lnDelBox(pi,bi){
+  lnPushNoteHistory();
+  const note=lnGetNote();
+  note.pages[pi].boxes.splice(bi,1);
+  DB.save('lnNote_'+lnSel.cid+'_'+lnSel.date,note);
+  lnRenderPages();
+}
+function lnSetupBoxDrag(){
+  document.querySelectorAll('#lnPageWrap .ln-box').forEach(box=>{
+    const grip=box.querySelector('.ln-box-grip'); // ⠿ 그립만 드래그 핸들
+    const pi=+box.dataset.pi, bi=+box.dataset.bi;
+    let sx,sy,ox,oy,stack,dragging=false;
+    const down=e=>{
+      dragging=true; stack=box.closest('.ln-page-stack');
+      const ev=e.touches?e.touches[0]:e;
+      sx=ev.clientX; sy=ev.clientY;
+      const r=stack.getBoundingClientRect();
+      ox=(parseFloat(box.style.left)||0)/100*r.width;
+      oy=(parseFloat(box.style.top)||0)/100*r.height;
+      e.preventDefault(); e.stopPropagation();
+    };
+    const move=e=>{
+      if(!dragging)return;
+      const ev=e.touches?e.touches[0]:e;
+      const r=stack.getBoundingClientRect();
+      let nx=ox+(ev.clientX-sx), ny=oy+(ev.clientY-sy);
+      let px=Math.max(0,Math.min(100,nx/r.width*100));
+      let py=Math.max(0,Math.min(100,ny/r.height*100));
+      box.style.left=px+'%'; box.style.top=py+'%';
+    };
+    const up=()=>{
+      if(!dragging)return; dragging=false;
+      const note=lnGetNote();
+      if(note.pages[pi]&&note.pages[pi].boxes&&note.pages[pi].boxes[bi]){
+        note.pages[pi].boxes[bi].x=parseFloat(box.style.left);
+        note.pages[pi].boxes[bi].y=parseFloat(box.style.top);
+        DB.save('lnNote_'+lnSel.cid+'_'+lnSel.date,note);
+      }
+    };
+    if(grip){
+      grip.style.cursor='grab';
+      grip.addEventListener('mousedown',down);
+      grip.addEventListener('touchstart',down,{passive:false});
+    }
+    document.addEventListener('mousemove',move);
+    document.addEventListener('touchmove',move,{passive:false});
+    document.addEventListener('mouseup',up);
+    document.addEventListener('touchend',up);
+  });
+}
+
+/* ===== 필기 캔버스 ===== */
+let lnPen={on:false, mode:'pen', color:'#111111', width:3};
+const LN_PEN_COLORS=['#111111','#ffffff','#e74c3c','#2980b9','#27ae60','#e67e22','#8e44ad','#f1c40f'];
+function lnTogglePen(){
+  lnPen.on=!lnPen.on;
+  document.getElementById('lnPenToggle').classList.toggle('on',lnPen.on);
+  document.getElementById('lnPenOpts').style.display=lnPen.on?'inline-flex':'none';
+  // 모든 페이지의 캔버스 on/off + 글자편집 잠금
+  document.querySelectorAll('#lnPageWrap .ln-canvas').forEach(cv=>{
+    cv.style.pointerEvents=lnPen.on?'auto':'none';
+    cv.style.zIndex=lnPen.on?'5':'2'; // 필기 중엔 최상위로
+  });
+  document.querySelectorAll('#lnPageWrap .ln-page').forEach(pg=>{ pg.setAttribute('contenteditable', lnPen.on?'false':'true'); });
+  // 텍스트 박스는 보이되, 필기 중엔 클릭 안 되게 (캔버스로 펜 이벤트가 가도록)
+  document.querySelectorAll('#lnPageWrap .ln-box').forEach(b=>{ b.style.pointerEvents=lnPen.on?'none':'auto'; });
+}
+function lnPenMode(m){ lnPen.mode=m; document.querySelectorAll('.lnp-mode').forEach(b=>b.classList.toggle('on',b.dataset.mode===m)); }
+function lnPenSet(k,v){ lnPen[k]=(k==='width')?+v:v; }
+function lnBuildColors(){
+  const box=document.getElementById('lnColors'); if(!box)return;
+  box.innerHTML=LN_PEN_COLORS.map(c=>`<span class="ln-color ${c===lnPen.color?'on':''}" style="background:${c}" onclick="lnPickColor('${c}')"></span>`).join('');
+}
+function lnPickColor(c){ lnPen.color=c; lnPen.mode='pen'; lnPenMode('pen'); lnBuildColors(); }
+
+let lnCtxs={}, lnDrawing=false, lnLast=null, lnActiveCanvas=null;
+function lnInitCanvas(pi, dataUrl){
+  const cv=document.getElementById('lnCanvas'+pi); const pg=document.getElementById('lnPage'+pi); if(!cv||!pg)return;
+  lnBuildColors();
+  const resize=()=>{
+    if(cv.width!==pg.offsetWidth||cv.height!==pg.offsetHeight){
+      cv.width=pg.offsetWidth; cv.height=pg.offsetHeight;
+      const ctx=cv.getContext('2d'); lnCtxs[pi]=ctx;
+      if(dataUrl){ const img=new Image(); img.onload=()=>ctx.drawImage(img,0,0,cv.width,cv.height); img.src=dataUrl; dataUrl=''; }
+    }
+  };
+  cv.style.width='100%'; cv.style.height='100%';
+  setTimeout(resize,50);
+  lnCtxs[pi]=cv.getContext('2d');
+  cv.style.pointerEvents=lnPen.on?'auto':'none';
+
+  const pos=e=>{ const r=cv.getBoundingClientRect(); return {x:(e.clientX-r.left)*(cv.width/r.width), y:(e.clientY-r.top)*(cv.height/r.height)}; };
+  cv.onpointerdown=e=>{
+    if(!lnPen.on) return;
+    if(e.pointerType==='touch') return; // 손가락 무시
+    lnPushHistory(pi); // 그리기 직전 상태 저장 (되돌리기용)
+    lnDrawing=true; lnActiveCanvas=pi; lnCurFocusPage=pi; lnLast=pos(e); cv.setPointerCapture(e.pointerId); e.preventDefault();
+  };
+  cv.onpointermove=e=>{
+    if(!lnDrawing||lnActiveCanvas!==pi) return;
+    if(e.pointerType==='touch') return;
+    const p=pos(e); const ctx=lnCtxs[pi];
+    ctx.lineCap='round'; ctx.lineJoin='round';
+    if(lnPen.mode==='eraser'){
+      ctx.globalCompositeOperation='destination-out'; ctx.lineWidth=lnPen.width*4;
+    }else if(lnPen.mode==='highlighter'){
+      ctx.globalCompositeOperation='source-over'; ctx.strokeStyle=lnHexA(lnPen.color,0.2); ctx.lineWidth=lnPen.width*3;
+    }else{
+      ctx.globalCompositeOperation='source-over'; ctx.strokeStyle=lnPen.color; ctx.lineWidth=lnPen.width;
+    }
+    ctx.beginPath(); ctx.moveTo(lnLast.x,lnLast.y); ctx.lineTo(p.x,p.y); ctx.stroke();
+    lnLast=p; e.preventDefault();
+  };
+  const end=e=>{ if(lnDrawing){ lnDrawing=false; lnSaveNote(); } };
+  cv.onpointerup=end; cv.onpointercancel=end; cv.onpointerleave=end;
+}
+function lnHexA(hex,a){ const n=parseInt(hex.slice(1),16); return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`; }
+
+/* 필기 되돌리기/다시하기 히스토리 (페이지별) */
+let lnDrawHist={}, lnDrawRedo={};
+function lnPushHistory(pi){
+  const cv=document.getElementById('lnCanvas'+pi); if(!cv)return;
+  try{
+    lnDrawHist[pi]=lnDrawHist[pi]||[];
+    lnDrawHist[pi].push(cv.toDataURL('image/png'));
+    if(lnDrawHist[pi].length>20) lnDrawHist[pi].shift(); // 최대 20단계
+    lnDrawRedo[pi]=[]; // 새로 그리면 redo 초기화
+  }catch(e){}
+}
+function lnDrawUndo(pi){
+  const cv=document.getElementById('lnCanvas'+pi); const ctx=lnCtxs[pi];
+  if(!cv||!ctx||!lnDrawHist[pi]||!lnDrawHist[pi].length) return false;
+  // 현재 상태를 redo에 저장
+  lnDrawRedo[pi]=lnDrawRedo[pi]||[]; lnDrawRedo[pi].push(cv.toDataURL('image/png'));
+  const prev=lnDrawHist[pi].pop();
+  const img=new Image(); img.onload=()=>{ ctx.clearRect(0,0,cv.width,cv.height); ctx.drawImage(img,0,0,cv.width,cv.height); lnSaveNote(); };
+  img.src=prev;
+  return true;
+}
+function lnDrawRedoFn(pi){
+  const cv=document.getElementById('lnCanvas'+pi); const ctx=lnCtxs[pi];
+  if(!cv||!ctx||!lnDrawRedo[pi]||!lnDrawRedo[pi].length) return false;
+  lnDrawHist[pi]=lnDrawHist[pi]||[]; lnDrawHist[pi].push(cv.toDataURL('image/png'));
+  const next=lnDrawRedo[pi].pop();
+  const img=new Image(); img.onload=()=>{ ctx.clearRect(0,0,cv.width,cv.height); ctx.drawImage(img,0,0,cv.width,cv.height); lnSaveNote(); };
+  img.src=next;
+  return true;
+}
+function lnClearDraw(){
+  if(!confirm('이 페이지들의 필기를 모두 지울까요?'))return;
+  Object.keys(lnCtxs).forEach(pi=>{ const cv=document.getElementById('lnCanvas'+pi); if(cv){lnPushHistory(pi);lnCtxs[pi].clearRect(0,0,cv.width,cv.height);} });
+  lnSaveNote();
+}
+let lnCurFocusPage=0;
+function lnCmd(cmd,val){
+  const pg=document.getElementById('lnPage'+lnCurFocusPage)||document.getElementById('lnPage0');
+  if(pg)pg.focus();
+  document.execCommand(cmd,false,val);
+  lnSaveNote();
+}
+function lnFontSize(px){
+  const pg=document.getElementById('lnPage'+lnCurFocusPage)||document.getElementById('lnPage0');
+  if(pg)pg.focus();
+  document.execCommand('fontSize',false,7); // 임시 크기
+  // 방금 적용된 font 태그를 px로 교체
+  const fonts=document.querySelectorAll('#lnPageWrap font[size="7"]');
+  fonts.forEach(f=>{ f.removeAttribute('size'); f.style.fontSize=px+'px'; });
+  lnSaveNote();
+}
+function lnHighlight(){
+  const pg=document.getElementById('lnPage'+lnCurFocusPage)||document.getElementById('lnPage0');
+  if(pg)pg.focus();
+  document.execCommand('hiliteColor',false,'#fff59d') || document.execCommand('backColor',false,'#fff59d');
+  lnSaveNote();
+}
+function lnHighlightOff(){
+  const pg=document.getElementById('lnPage'+lnCurFocusPage)||document.getElementById('lnPage0');
+  if(pg)pg.focus();
+  // 선택 영역의 형광(배경색) 제거 → 투명으로
+  document.execCommand('hiliteColor',false,'transparent') || document.execCommand('backColor',false,'transparent');
+  lnSaveNote();
+}
+function lnUndo(){
+  // 필기 모드면 필기 되돌리기 우선
+  if(lnPen.on){ if(lnDrawUndo(lnCurFocusPage)) return; }
+  if(lnNoteUndo()) return; // 박스 생성/삭제 되돌리기
+  const pg=document.getElementById('lnPage'+lnCurFocusPage)||document.getElementById('lnPage0'); if(pg)pg.focus(); document.execCommand('undo'); lnSaveNote();
+}
+function lnRedo(){
+  if(lnPen.on){ if(lnDrawRedoFn(lnCurFocusPage)) return; }
+  if(lnNoteRedoFn()) return;
+  const pg=document.getElementById('lnPage'+lnCurFocusPage)||document.getElementById('lnPage0'); if(pg)pg.focus(); document.execCommand('redo'); lnSaveNote();
+}
+
+function lnSaveNote(){
+  if(!lnSel.cid||!lnSel.date)return;
+  const stacks=document.querySelectorAll('#lnPageWrap .ln-page-stack');
+  if(!stacks.length)return;
+  const prev=lnGetNote(); // 기존 bg/boxes 유지
+  const pages=[];
+  stacks.forEach((st,i)=>{
+    const pg=st.querySelector('.ln-page'); const cv=st.querySelector('.ln-canvas');
+    let draw='';
+    if(cv){
+      try{ const ctx=cv.getContext('2d'); const d=ctx.getImageData(0,0,cv.width,cv.height).data;
+        let has=false; for(let k=3;k<d.length;k+=4){ if(d[k]!==0){has=true;break;} }
+        draw=has?cv.toDataURL('image/png'):'';
+      }catch(e){ draw=''; }
+    }
+    const pp=prev.pages[i]||{};
+    pages.push({html:pg?pg.innerHTML:'', draw, bg:pp.bg||'', boxes:pp.boxes||[]});
+  });
+  DB.save('lnNote_'+lnSel.cid+'_'+lnSel.date,{pages});
+}
+function lnInsertImage(){
+  const inp=document.createElement('input');inp.type='file';inp.accept='image/*';
+  inp.onchange=()=>{ const f=inp.files[0];if(!f)return;
+    const reader=new FileReader();
+    reader.onload=e=>{
+      const img=new Image();
+      img.onload=()=>{
+        const max=800;let{width:w,height:h}=img;
+        if(w>max){h=h*max/w;w=max;}
+        const cv=document.createElement('canvas');cv.width=w;cv.height=h;
+        cv.getContext('2d').drawImage(img,0,0,w,h);
+        const pg=document.getElementById('lnPage'+lnCurFocusPage)||document.getElementById('lnPage0');
+        if(pg)pg.focus();
+        // 크기 조절 가능한 이미지 삽입 (기본 너비 50%, 클릭하면 슬라이더)
+        const dataUrl=cv.toDataURL('image/jpeg',0.8);
+        const imgHtml=`<img src="${dataUrl}" class="ln-img" style="width:50%;cursor:pointer">`;
+        document.execCommand('insertHTML',false,imgHtml);
+        lnSaveNote();
+      };
+      img.src=e.target.result;
+    };
+    reader.readAsDataURL(f);
+  };
+  inp.click();
+}
+// 삽입 이미지 클릭 → 크기 조절 바 표시
+let lnCurImg=null;
+function lnPickImg(el){
+  lnCurImg=el;
+  const bar=document.getElementById('lnImgSizeBar');
+  const cur=parseInt(el.style.width)||50;
+  document.getElementById('lnImgSizeRange').value=cur;
+  document.getElementById('lnImgSizeVal').textContent=cur+'%';
+  bar.style.display='flex';
+}
+function lnImgResize(v){
+  if(!lnCurImg)return;
+  lnCurImg.style.width=v+'%';
+  document.getElementById('lnImgSizeVal').textContent=v+'%';
+}
+function lnImgResizeDone(){
+  document.getElementById('lnImgSizeBar').style.display='none';
+  lnCurImg=null; lnSaveNote();
+}
+function lnImgDelete(){
+  if(lnCurImg){ lnPushNoteHistory&&null; lnCurImg.remove(); lnCurImg=null; document.getElementById('lnImgSizeBar').style.display='none'; lnSaveNote(); }
+}
+
+/* PDF 내보내기 (이 페이지 / 이 수업 전체) */
+function lnNotePages(cid,date){
+  const n=DB.load('lnNote_'+cid+'_'+date,null);
+  if(!n) return [];
+  if(!n.pages) return [{html:n.html||'',draw:n.draw||''}]; // 구버전
+  return n.pages;
+}
+function lnExportOne(){
+  if(!lnSel.cid||!lnSel.date)return;
+  lnSaveNote();
+  const cls=lnClasses().find(c=>c.id===lnSel.cid);
+  const pages=lnNotePages(lnSel.cid,lnSel.date).map(p=>({date:lnSel.date, html:p.html, draw:p.draw, bg:p.bg, boxes:p.boxes}));
+  lnBuildPDF(cls.name, pages);
+}
+function lnExportClass(cid){
+  const cls=lnClasses().find(c=>c.id===cid); if(!cls)return;
+  let pages=[];
+  (cls.dates||[]).forEach(d=>{
+    lnNotePages(cid,d).forEach(p=>{
+      const empty=!(p.html&&p.html.replace(/<[^>]*>/g,'').trim())&&!p.draw&&!p.bg&&!(p.boxes&&p.boxes.length);
+      if(!empty) pages.push({date:d, html:p.html, draw:p.draw, bg:p.bg, boxes:p.boxes});
+    });
+  });
+  if(!pages.length){ alert('작성된 노트가 없어요!'); return; }
+  lnBuildPDF(cls.name, pages);
+}
+// 화면 보이는 그대로 캡처해서 PDF (html2canvas)
+async function lnBuildPDF(className, pages){
+  if(typeof html2canvas==='undefined'){ alert('캡처 기능을 불러오지 못했어요. 인터넷 연결을 확인하고 새로고침해주세요.'); return; }
+  // 진행 안내
+  const prog=document.createElement('div');
+  prog.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px;font-family:var(--hand-font)';
+  prog.textContent='PDF 만드는 중... (0/'+pages.length+')';
+  document.body.appendChild(prog);
+
+  // 오프스크린 렌더 컨테이너 (A4 비율, 실제 화면 페이지와 동일 스타일)
+  const holder=document.createElement('div');
+  holder.style.cssText='position:fixed;left:-9999px;top:0;width:794px;background:#fff;'; // 794px ≈ A4 96dpi
+  document.body.appendChild(holder);
+
+  const images=[];
+  for(let i=0;i<pages.length;i++){
+    const p=pages[i];
+    const stack=document.createElement('div');
+    stack.style.cssText='position:relative;width:794px;height:1123px;background:#fff;overflow:hidden;font-family:var(--hand-font);';
+    stack.innerHTML=`
+      ${p.bg?`<img src="${p.bg}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain">`:''}
+      <div style="position:absolute;inset:0;padding:40px 44px;font-size:16px;line-height:1.7;z-index:1">${p.html||''}</div>
+      ${p.draw?`<img src="${p.draw}" style="position:absolute;inset:0;width:100%;height:100%">`:''}
+      ${(p.boxes||[]).map(b=>`<div style="position:absolute;left:${b.x||10}%;top:${b.y||10}%;width:${b.w||40}%;border:1px solid #999;border-radius:6px;background:rgba(255,255,255,.8);padding:6px;font-size:15px;z-index:3">${b.html||''}</div>`).join('')}
+    `;
+    holder.appendChild(stack);
+    try{
+      const canvas=await html2canvas(stack,{scale:2,backgroundColor:'#ffffff',useCORS:true,logging:false});
+      images.push(canvas.toDataURL('image/jpeg',0.9));
+    }catch(e){ console.warn('capture fail',e); }
+    holder.removeChild(stack);
+    prog.textContent='PDF 만드는 중... ('+(i+1)+'/'+pages.length+')';
+  }
+  document.body.removeChild(holder);
+  document.body.removeChild(prog);
+
+  if(!images.length){ alert('페이지 캡처에 실패했어요.'); return; }
+
+  // 인쇄창에 이미지들을 A4 한 장씩 배치
+  const w=window.open('','_blank');
+  if(!w){ alert('팝업이 차단됐어요. 팝업을 허용해주세요.'); return; }
+  const style='<style>@page{size:A4;margin:0;}body{margin:0;}img{width:100%;height:100vh;object-fit:contain;display:block;page-break-after:always;}img:last-child{page-break-after:auto;}</style>';
+  const body=images.map(src=>`<img src="${src}">`).join('');
+  const scriptTag='<scr'+'ipt>window.onload=function(){setTimeout(function(){window.print();},400);}</scr'+'ipt>';
+  w.document.write('<html><head><title>'+className+'</title>'+style+'</head><body>'+body+scriptTag+'</body></html>');
+  w.document.close();
+}
 
 let badgeTimer;
 function flashSaved(){const b=document.getElementById('saveBadge');b.classList.add('show');clearTimeout(badgeTimer);badgeTimer=setTimeout(()=>b.classList.remove('show'),1200);}
 
 function loadCover(){const c=DB.load('cover',{title:'my diary',sub:'tap to open ✿',year:'˚₊· ͟͟͞͞➳ 2026'});
-  coverTitle.textContent=c.title;coverSub.textContent=c.sub;coverYear.textContent=c.year;}
+  coverTitle.textContent=c.title;coverSub.textContent=c.sub;coverYear.textContent=c.year;
+  const dn=document.getElementById('dnTitle'); if(dn) dn.textContent=c.title;}
 function openCoverEdit(){const c=DB.load('cover',{title:'my diary',sub:'tap to open ✿',year:'˚₊· ͟͟͞͞➳ 2026'});
   edTitle.value=c.title;edSub.value=c.sub;edYear.value=c.year;coverModal.classList.add('show');}
 function closeCoverEdit(){coverModal.classList.remove('show');}
@@ -1694,6 +2905,9 @@ function renderAll(){
   tdLoad();
   mmRender();
   dyRender();
+  tt2Render();
+  goalRender();
+  lnRender();
 }
 
 /* ===== Firebase 로그인 ===== */
@@ -1766,14 +2980,72 @@ function setupAuth(){
   document.getElementById('dyDate').value=DB.load('dyLastDate',localYmd());
   dyRender();
 
-  go(DB.load('lastSec','calendar'));
+  go(DB.load('lastSec','calendar')); // 노트 탭 초기 상태 설정 (화면엔 아직 안 보임)
+  ltGo(DB.load('ltLastSec','timetable')); // 랩탑 탭 초기 상태
+  // 첫 진입은 책상 화면 (opened/note-open/laptop-open 아무것도 없음)
 
   setupAuth();
 
   // 루틴 알림: 1분마다 체크 (앱이 열려있거나 설치 시 SW가 살아있는 동안)
   checkRoutineAlarms();
   setInterval(checkRoutineAlarms, 30000); // 30초마다 (분 경계 놓치지 않게)
+
+  // ===== 자동 텍스트 치환: ** → · , -> → → , <- → ← =====
+  setupAutoReplace();
 })();
+
+function setupAutoReplace(){
+  const rules=[
+    {from:'**', to:'·'},
+    {from:'->', to:'→'},
+    {from:'<-', to:'←'},
+  ];
+  document.addEventListener('input', e=>{
+    const el=e.target;
+    // 1) contenteditable (강의노트 등)
+    if(el && el.isContentEditable){
+      const sel=window.getSelection();
+      if(!sel||!sel.rangeCount)return;
+      const range=sel.getRangeAt(0);
+      const node=range.startContainer;
+      if(node.nodeType!==3)return; // 텍스트 노드만
+      let text=node.nodeValue, caret=range.startOffset, changed=false;
+      rules.forEach(r=>{
+        let idx;
+        while((idx=text.indexOf(r.from))!==-1){
+          text=text.slice(0,idx)+r.to+text.slice(idx+r.from.length);
+          if(caret>idx) caret-=(r.from.length-r.to.length);
+          changed=true;
+        }
+      });
+      if(changed){
+        node.nodeValue=text;
+        try{ const nr=document.createRange(); nr.setStart(node,Math.min(caret,text.length)); nr.collapse(true);
+          sel.removeAllRanges(); sel.addRange(nr); }catch(_){}
+        if(typeof lnSaveNote==='function' && el.closest && el.closest('#lnPageWrap')) lnSaveNote();
+      }
+      return;
+    }
+    // 2) input / textarea
+    if(!el||(el.tagName!=='INPUT'&&el.tagName!=='TEXTAREA'))return;
+    if(el.type && ['date','time','month','number','file','checkbox','color'].includes(el.type))return;
+    let val=el.value, changed=false;
+    let pos=el.selectionStart;
+    rules.forEach(r=>{
+      let idx;
+      while((idx=val.indexOf(r.from))!==-1){
+        val=val.slice(0,idx)+r.to+val.slice(idx+r.from.length);
+        if(pos>idx){ pos-=(r.from.length-r.to.length); }
+        changed=true;
+      }
+    });
+    if(changed){
+      el.value=val;
+      try{ el.setSelectionRange(pos,pos); }catch(_){}
+      el.dispatchEvent(new Event('change'));
+    }
+  }, true);
+}
 
 /* ===================== PWA (설치 가능하게) ===================== */
 (function setupPWA(){
