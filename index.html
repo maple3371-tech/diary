@@ -1068,7 +1068,8 @@ function buildFontList(){
     el.style.fontFamily=f.css;el.innerHTML=`<span class="name">${f.name} 가나다 abc</span><span class="check">✓</span>`;
     el.onclick=()=>setFont(f.css);wrap.appendChild(el);});
 }
-function setFont(css){document.documentElement.style.setProperty('--hand-font',css);DB.save('font',css);buildFontList();}
+function setFont(css){document.documentElement.style.setProperty('--hand-font',css);DB.save('font',css);buildFontList();
+  document.getElementById('fontPanel').classList.remove('show');}
 function toggleFonts(){document.getElementById('fontPanel').classList.toggle('show');}
 function toggleTopMenu(){document.getElementById('topMenu').classList.toggle('show');}
 function toggleLtMenu(){document.getElementById('ltMenu').classList.toggle('show');}
