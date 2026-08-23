@@ -125,10 +125,13 @@ body{background:#f4f4f4;color:var(--ink);overflow:hidden;display:flex;align-item
   align-items:center;justify-content:center;gap:14px;color:#999;font-size:20px;text-align:center;padding:20px;}
 .placeholder .naru{width:54px;height:54px;opacity:.5;}
 
-#topbar{position:absolute;top:14px;right:16px;z-index:50;display:flex;gap:10px;align-items:center;}
+#topbar{position:absolute;top:14px;right:16px;z-index:50;display:flex;flex-direction:column;gap:8px;align-items:flex-end;}
 #topbar .jelly{padding:9px 14px;font-size:15px;}
+#topMenu{display:none;flex-direction:column;gap:8px;align-items:flex-end;}
+#topMenu.show{display:flex;animation:pop .2s ease;}
+#gearBtn{font-size:18px;}
 
-#fontPanel{position:absolute;top:60px;right:16px;z-index:60;width:230px;background:var(--paper);
+#fontPanel{position:absolute;top:60px;right:16px;z-index:80;width:230px;background:var(--paper);
   border:2.5px solid var(--ink);border-radius:18px;box-shadow:0 10px 0 rgba(0,0,0,.12),0 14px 30px rgba(0,0,0,.2);
   padding:14px;display:none;max-height:70vh;overflow:auto;}
 #fontPanel.show{display:block;animation:pop .25s ease;}
@@ -378,7 +381,7 @@ body.mobile .bb-innings{grid-template-columns:repeat(4,1fr);}
 
 body.mobile #book{width:96vw;height:90vh;border-radius:18px;}
 /* 모바일: 상단바가 다이어리와 안 겹치게 — 버튼은 위에 고정, 다이어리는 그 아래로 */
-body.mobile #topbar{top:10px;right:10px;gap:7px;flex-wrap:wrap;justify-content:flex-end;max-width:74vw;}
+body.mobile #topbar{top:10px;right:10px;gap:7px;align-items:flex-end;max-width:74vw;}
 body.mobile #topbar .jelly{padding:7px 11px;font-size:13px;}
 body.mobile #topbar .jelly.round{width:40px;height:40px;font-size:16px;}
 body.mobile #stage{align-items:flex-end;}
@@ -447,7 +450,6 @@ body.mobile .recap-spread::before{display:none;}
 .lt-page.show{display:flex;animation:flip .4s ease;}
 .lt-page h2{font-family:var(--ui-font);font-size:24px;margin:0 0 2px;display:flex;align-items:center;gap:10px;}
 .lt-page .desc{font-family:var(--hand-font);font-size:17px;color:#666;margin-bottom:14px;}
-.lt-topbar{position:absolute;top:14px;right:22px;z-index:20;display:flex;gap:7px;}
 .lt-hinge{width:min(1000px,96vw);height:14px;background:linear-gradient(#2a2a2a,#111);border-radius:0 0 6px 6px;}
 .lt-keyboard{width:min(1080px,99vw);height:22px;background:linear-gradient(#dcdcdc,#b8b8b8);border:2.5px solid var(--ink);
   border-radius:6px 6px 14px 14px;box-shadow:0 12px 24px rgba(0,0,0,.28);position:relative;margin-top:-2px;}
@@ -486,7 +488,7 @@ body.mobile #laptop{padding:0;justify-content:flex-end;}
   font-size:18px;box-shadow:0 3px 0 rgba(0,0,0,.1);}
 .goal-count button:active{transform:translateY(2px);box-shadow:none;}
 .goal-count .cnum{font-size:18px;min-width:70px;text-align:center;}
-.goal-done-btn{margin-top:10px;}
+.goal-done-btn{margin-top:10px;min-width:44px;padding:6px 12px;flex:0 0 auto;}
 /* 수정모드 입력 */
 .goal-edit-row{display:flex;flex-direction:column;gap:8px;}
 .goal-edit-row .r{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
@@ -534,6 +536,14 @@ body.mobile #laptop{padding:0;justify-content:flex-end;}
 .ln-zoombar button{border:2px solid var(--ink);background:#fff;border-radius:8px;cursor:pointer;font-size:13px;padding:3px 9px;box-shadow:0 2px 0 rgba(0,0,0,.1);}
 .ln-zoombar button:active{transform:translateY(2px);box-shadow:none;}
 .ln-zoom-inner{width:100%;display:flex;flex-direction:column;align-items:center;gap:16px;transition:transform .12s;}
+
+/* 집중 모드: LECTURE NOTE 편집기만 전체화면 */
+body.ln-focus #lnEditor{position:fixed;inset:0;z-index:9998;background:var(--paper);padding:8px;display:flex;flex-direction:column;}
+body.ln-focus #lnSidebar{display:none;}
+body.ln-focus .ln-page-wrap{flex:1;display:flex;flex-direction:column;align-items:center;gap:16px;padding:16px;overflow:auto;}
+body.ln-focus .ln-page-wrap>button{flex:0 0 auto;margin:4px 0 8px;}
+body.ln-focus #laptop .lt-topbar,body.ln-focus #laptop .lt-tabs,body.ln-focus #laptop .lt-chrome{display:none;}
+body.ln-focus .ln-page-label{max-width:640px;}
 .ln-page-stack .ln-page{width:100%;height:100%;max-width:none;aspect-ratio:auto;position:absolute;inset:0;}
 .ln-canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;z-index:2;pointer-events:none;border-radius:0;}
 /* 사진 배경 */
@@ -679,10 +689,13 @@ body:not(.mobile) #lnListBtn{display:none;}
   </div>
 
   <div id="topbar">
-    <button class="jelly" id="installBtn" onclick="installApp()" style="display:none">⬇ Install</button>
-    <button class="jelly" id="loginBtn" onclick="fbLogin()">Sign in</button>
-    <button class="jelly" onclick="toggleFonts()">Aa Font</button>
-    <button class="jelly round" onclick="closeBook()" title="desk">✕</button>
+    <button class="jelly round" id="gearBtn" onclick="toggleTopMenu()" title="설정">⚙</button>
+    <div id="topMenu">
+      <button class="jelly" id="installBtn" onclick="installApp()" style="display:none">⬇ Install</button>
+      <button class="jelly" id="loginBtn" onclick="fbLogin()">Sign in</button>
+      <button class="jelly" onclick="toggleFonts()">Aa Font</button>
+      <button class="jelly round" onclick="closeBook()" title="desk">✕</button>
+    </div>
   </div>
 
   <div id="fontPanel">
@@ -808,11 +821,6 @@ body:not(.mobile) #lnListBtn{display:none;}
         </section>
 
       </div>
-    </div>
-    <div class="lt-topbar">
-      <button class="jelly sm" id="installBtn2" onclick="installApp()" style="display:none">⬇</button>
-      <button class="jelly sm" onclick="toggleFonts()">Aa</button>
-      <button class="jelly sm round" onclick="backToDesk()">✕</button>
     </div>
   </div>
   <div class="lt-hinge"></div>
@@ -1061,6 +1069,8 @@ function buildFontList(){
 }
 function setFont(css){document.documentElement.style.setProperty('--hand-font',css);DB.save('font',css);buildFontList();}
 function toggleFonts(){document.getElementById('fontPanel').classList.toggle('show');}
+function toggleTopMenu(){document.getElementById('topMenu').classList.toggle('show');}
+function toggleLtMenu(){document.getElementById('ltMenu').classList.toggle('show');}
 
 function go(sec){
   if(sec==='__desk') return;
@@ -1269,7 +1279,7 @@ function goalViewCard(g){
       <button onclick="goalStep('${g.id}',-1)">−</button>
       <span class="cnum">${+g.current||0} / ${+g.total||0}</span>
       <button onclick="goalStep('${g.id}',1)">+</button>
-      <button class="jelly sm goal-done-btn" style="margin-left:auto" onclick="goalComplete('${g.id}')">✓ 완료</button>
+      <button class="jelly sm goal-done-btn" style="margin-left:auto;white-space:nowrap" onclick="goalComplete('${g.id}')" title="목표 완료">✓</button>
     </div>
   </div>`;
 }
@@ -1443,6 +1453,7 @@ function lnRenderEditor(){
       <button onclick="lnClearBg()" title="배경 지우기">🌄✕</button>
       <button onclick="lnAddBox()" title="텍스트 박스">🔤</button>
       <button onclick="lnExportOne()" title="이 페이지 PDF">PDF</button>
+      <button onclick="lnToggleFocus()" title="집중 모드 (전체화면 필기)" id="lnFocusBtn">⛶ 집중</button>
     </div>
     <div class="ln-pentools" id="lnPenTools">
       <button id="lnPenToggle" onclick="lnTogglePen()" title="펜으로 필기 (손가락은 인식 안 됨)">✏️ 펜</button>
@@ -1482,6 +1493,12 @@ function lnRenderEditor(){
 }
 /* 배율 조정 */
 let lnZoomLevel=1;
+function lnToggleFocus(){
+  const on=document.body.classList.toggle('ln-focus');
+  const btn=document.getElementById('lnFocusBtn');
+  if(btn) btn.textContent = on ? '⛶ 나가기' : '⛶ 집중';
+  // 페이지 크기는 그대로 유지되므로 캔버스 재초기화 불필요 (재초기화하면 필기 어긋남)
+}
 function lnZoom(dir){
   lnZoomLevel=Math.max(0.4,Math.min(2.5, lnZoomLevel+dir*0.1));
   lnApplyZoom();
@@ -1714,19 +1731,18 @@ function lnBuildColors(){
 function lnPickColor(c){ lnPen.color=c; lnPen.mode='pen'; lnPenMode('pen'); lnBuildColors(); }
 
 let lnCtxs={}, lnDrawing=false, lnLast=null, lnActiveCanvas=null;
+const LN_CV_W=800, LN_CV_H=1131; // 캔버스 고정 내부 해상도 (A4 비율). 페이지 표시크기와 무관하게 일정
 function lnInitCanvas(pi, dataUrl){
   const cv=document.getElementById('lnCanvas'+pi); const pg=document.getElementById('lnPage'+pi); if(!cv||!pg)return;
   lnBuildColors();
-  const resize=()=>{
-    if(cv.width!==pg.offsetWidth||cv.height!==pg.offsetHeight){
-      cv.width=pg.offsetWidth; cv.height=pg.offsetHeight;
-      const ctx=cv.getContext('2d'); lnCtxs[pi]=ctx;
-      if(dataUrl){ const img=new Image(); img.onload=()=>ctx.drawImage(img,0,0,cv.width,cv.height); img.src=dataUrl; dataUrl=''; }
-    }
-  };
+  // 내부 해상도는 항상 고정 → 페이지가 커지든 작아지든 필기 좌표가 안 어긋남
+  if(cv.width!==LN_CV_W||cv.height!==LN_CV_H){
+    cv.width=LN_CV_W; cv.height=LN_CV_H;
+  }
+  const ctx=cv.getContext('2d'); lnCtxs[pi]=ctx;
+  ctx.clearRect(0,0,cv.width,cv.height);
+  if(dataUrl){ const img=new Image(); img.onload=()=>ctx.drawImage(img,0,0,cv.width,cv.height); img.src=dataUrl; }
   cv.style.width='100%'; cv.style.height='100%';
-  setTimeout(resize,50);
-  lnCtxs[pi]=cv.getContext('2d');
   cv.style.pointerEvents=lnPen.on?'auto':'none';
 
   const pos=e=>{ const r=cv.getBoundingClientRect(); return {x:(e.clientX-r.left)*(cv.width/r.width), y:(e.clientY-r.top)*(cv.height/r.height)}; };
@@ -1907,12 +1923,49 @@ function lnNotePages(cid,date){
   if(!n.pages) return [{html:n.html||'',draw:n.draw||''}]; // 구버전
   return n.pages;
 }
-function lnExportOne(){
+async function lnExportOne(){
   if(!lnSel.cid||!lnSel.date)return;
   lnSaveNote();
   const cls=lnClasses().find(c=>c.id===lnSel.cid);
-  const pages=lnNotePages(lnSel.cid,lnSel.date).map(p=>({date:lnSel.date, html:p.html, draw:p.draw, bg:p.bg, boxes:p.boxes}));
-  lnBuildPDF(cls.name, pages);
+  // 화면에 실제 렌더된 페이지를 그대로 캡처 (배율/배경 100% 일치)
+  await lnCaptureLivePages(cls.name);
+}
+// 화면의 실제 .ln-page-stack 요소들을 캡처 → PDF
+async function lnCaptureLivePages(className){
+  if(typeof html2canvas==='undefined'){ alert('캡처 기능을 불러오지 못했어요. 인터넷 연결을 확인하고 새로고침해주세요.'); return; }
+  const stacks=[...document.querySelectorAll('#lnPageWrap .ln-page-stack')];
+  if(!stacks.length){ alert('페이지가 없어요.'); return; }
+  // 줌 때문에 캡처가 흐려지지 않게, 잠깐 줌을 100%로 되돌렸다가 복원
+  const savedZoom=lnZoomLevel; lnZoomLevel=1; lnApplyZoom();
+  await new Promise(r=>setTimeout(r,120));
+
+  const prog=document.createElement('div');
+  prog.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px;font-family:var(--hand-font)';
+  prog.textContent='PDF 만드는 중... (0/'+stacks.length+')';
+  document.body.appendChild(prog);
+
+  const images=[];
+  for(let i=0;i<stacks.length;i++){
+    try{
+      const canvas=await html2canvas(stacks[i],{scale:2,backgroundColor:'#ffffff',useCORS:true,logging:false});
+      images.push(canvas.toDataURL('image/jpeg',0.92));
+    }catch(e){ console.warn('capture fail',e); }
+    prog.textContent='PDF 만드는 중... ('+(i+1)+'/'+stacks.length+')';
+  }
+  document.body.removeChild(prog);
+  lnZoomLevel=savedZoom; lnApplyZoom();
+
+  if(!images.length){ alert('페이지 캡처에 실패했어요.'); return; }
+  lnImagesToPDF(className, images);
+}
+function lnImagesToPDF(className, images){
+  const w=window.open('','_blank');
+  if(!w){ alert('팝업이 차단됐어요. 팝업을 허용해주세요.'); return; }
+  const style='<style>@page{size:A4;margin:8mm;}body{margin:0;}.pdfpage{width:100%;height:calc(100vh - 2px);display:flex;align-items:center;justify-content:center;page-break-after:always;box-sizing:border-box;}.pdfpage:last-child{page-break-after:auto;}.pdfpage img{max-width:100%;max-height:100%;object-fit:contain;display:block;}</style>';
+  const body=images.map(src=>`<div class="pdfpage"><img src="${src}"></div>`).join('');
+  const scriptTag='<scr'+'ipt>window.onload=function(){setTimeout(function(){window.print();},400);}</scr'+'ipt>';
+  w.document.write('<html><head><title>'+className+'</title>'+style+'</head><body>'+body+scriptTag+'</body></html>');
+  w.document.close();
 }
 function lnExportClass(cid){
   const cls=lnClasses().find(c=>c.id===cid); if(!cls)return;
@@ -1944,12 +1997,13 @@ async function lnBuildPDF(className, pages){
   for(let i=0;i<pages.length;i++){
     const p=pages[i];
     const stack=document.createElement('div');
+    // 화면 페이지(.ln-page-stack)와 동일한 비율/구조로 (배경 contain, 필기 오버레이)
     stack.style.cssText='position:relative;width:794px;height:1123px;background:#fff;overflow:hidden;font-family:var(--hand-font);';
     stack.innerHTML=`
-      ${p.bg?`<img src="${p.bg}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain">`:''}
-      <div style="position:absolute;inset:0;padding:40px 44px;font-size:16px;line-height:1.7;z-index:1">${p.html||''}</div>
-      ${p.draw?`<img src="${p.draw}" style="position:absolute;inset:0;width:100%;height:100%">`:''}
-      ${(p.boxes||[]).map(b=>`<div style="position:absolute;left:${b.x||10}%;top:${b.y||10}%;width:${b.w||40}%;border:1px solid #999;border-radius:6px;background:rgba(255,255,255,.8);padding:6px;font-size:15px;z-index:3">${b.html||''}</div>`).join('')}
+      ${p.bg?`<img src="${p.bg}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;z-index:0">`:''}
+      <div style="position:absolute;inset:0;padding:40px 44px;font-size:16px;line-height:1.7;z-index:1;box-sizing:border-box">${p.html||''}</div>
+      ${p.draw?`<img src="${p.draw}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:fill;z-index:2">`:''}
+      ${(p.boxes||[]).map(b=>`<div style="position:absolute;left:${b.x||10}%;top:${b.y||10}%;width:${b.w||40}%;border:1px solid #999;border-radius:6px;background:rgba(255,255,255,.8);padding:6px;font-size:15px;z-index:3;box-sizing:border-box">${b.html||''}</div>`).join('')}
     `;
     holder.appendChild(stack);
     try{
