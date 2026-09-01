@@ -698,6 +698,7 @@ body:not(.mobile) #lnListBtn{display:none;}
       <button class="jelly" id="installBtn" onclick="installApp()" style="display:none">⬇ Install</button>
       <button class="jelly" id="loginBtn" onclick="fbLogin()">Sign in</button>
       <button class="jelly" onclick="toggleFonts()">Aa Font</button>
+      <button class="jelly" onclick="openBackupMenu()">💾 백업</button>
       <button class="jelly round" onclick="closeBook()" title="desk">✕</button>
     </div>
   </div>
@@ -831,6 +832,21 @@ body:not(.mobile) #lnListBtn{display:none;}
   <div class="lt-keyboard"><div class="lt-trackpad"></div></div>
 </div>
 
+</div>
+
+<!-- 백업 -->
+<div class="modal" id="backupModal">
+  <div class="box">
+    <h3><span class="naru" style="width:20px;height:20px"></span> 백업 &amp; 복원</h3>
+    <div style="font-size:14px;color:#777;margin-bottom:10px">데이터가 날아가지 않게 가끔 백업해두세요!</div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <button class="jelly sm" onclick="downloadBackup()">⬇ 백업 파일 내려받기</button>
+      <button class="jelly sm" onclick="restoreBackup()">⬆ 백업 파일에서 복원</button>
+      <button class="jelly sm" onclick="showAutoBackups()">↺ 자동 백업으로 되돌리기</button>
+    </div>
+    <div style="font-size:12px;color:#999;margin-top:10px">자동 백업은 접속할 때마다 최근 5개까지 저장돼요.</div>
+    <div class="row"><button class="jelly sm" onclick="document.getElementById('backupModal').classList.remove('show')">닫기</button></div>
+  </div>
 </div>
 
 <!-- 과목 색상 선택 -->
@@ -1037,6 +1053,8 @@ let fbUser=null;        // 로그인된 사용자 (없으면 null)
 let fbDoc=null;         // Firestore 문서 참조 (users/uid)
 let cloudCache={};      // 클라우드에서 받아온 전체 데이터 캐시
 let saveTimer=null;     // 저장 디바운스
+let cloudReady=false;   // 클라우드 로딩 완료 여부 (완료 전엔 저장 금지!)
+let suppressSync=false; // 실시간 수신 중 재저장 방지
 
 const DB={
   load(key,def){
@@ -1044,8 +1062,16 @@ const DB={
     try{const v=localStorage.getItem('diary_'+key);return v==null?def:JSON.parse(v);}catch(e){return def;}
   },
   save(key,val){
+    // 로컬은 항상 저장 (오프라인 안전)
     try{localStorage.setItem('diary_'+key,JSON.stringify(val));}catch(e){}
-    if(fbUser){ cloudCache[key]=val; scheduleCloudSave(); }
+    if(fbUser){
+      if(!cloudReady){
+        // 아직 클라우드를 다 못 불러온 상태 → 클라우드 저장 보류 (덮어쓰기 사고 방지)
+        console.warn('클라우드 로딩 중이라 저장 보류:',key);
+        flashSaved(); return;
+      }
+      cloudCache[key]=val; scheduleCloudSave();
+    }
     flashSaved();
   }
 };
@@ -1053,7 +1079,16 @@ const DB={
 function scheduleCloudSave(){
   clearTimeout(saveTimer);
   saveTimer=setTimeout(()=>{
-    if(fbDoc){ fbDoc.set(cloudCache).catch(err=>console.warn('cloud save failed',err)); }
+    if(!fbDoc||!cloudReady) return;
+    // 안전장치: 캐시가 비정상적으로 비어있으면 저장하지 않음 (전체 삭제 사고 방지)
+    if(Object.keys(cloudCache).length===0){
+      console.warn('빈 데이터 저장 차단');
+      return;
+    }
+    suppressSync=true; // 내가 쓴 건 실시간 수신에서 무시
+    fbDoc.set(cloudCache)
+      .catch(err=>console.warn('cloud save failed',err))
+      .finally(()=>{ setTimeout(()=>{suppressSync=false;},300); });
   },600);
 }
 
@@ -1075,6 +1110,7 @@ function setFont(css){document.documentElement.style.setProperty('--hand-font',c
   document.getElementById('fontPanel').classList.remove('show');}
 function toggleFonts(){document.getElementById('fontPanel').classList.toggle('show');}
 function toggleTopMenu(){document.getElementById('topMenu').classList.toggle('show');}
+function openBackupMenu(){document.getElementById('backupModal').classList.add('show');}
 function toggleLtMenu(){document.getElementById('ltMenu').classList.toggle('show');}
 
 function go(sec){
@@ -3019,6 +3055,7 @@ function setupAuth(){
   firebase.auth().onAuthStateChanged(async user=>{
     if(user){
       fbUser=user;
+      cloudReady=false; // 로딩 시작 → 저장 잠금
       fbDoc=firebase.firestore().collection('users').doc(user.uid);
       btn.textContent=(user.displayName?user.displayName.split(' ')[0]:'')+' ✓';
       btn.onclick=()=>{ if(confirm('로그아웃 할까요?')) fbLogout(); };
@@ -3026,23 +3063,119 @@ function setupAuth(){
         const snap=await fbDoc.get();
         if(snap.exists){
           cloudCache=snap.data()||{};
+          // 로컬에만 있고 클라우드에 없는 항목은 병합해서 살림 (기기별 데이터 보존)
+          for(let i=0;i<localStorage.length;i++){
+            const k=localStorage.key(i);
+            if(k&&k.startsWith('diary_')&&k!=='diary_backups'){
+              const key=k.slice(6);
+              if(!(key in cloudCache)){
+                try{ cloudCache[key]=JSON.parse(localStorage.getItem(k)); }catch(e){}
+              }
+            }
+          }
         }else{
           // 첫 로그인: 지금 로컬에 있던 데이터를 클라우드로 올림
           cloudCache={};
           for(let i=0;i<localStorage.length;i++){
             const k=localStorage.key(i);
-            if(k&&k.startsWith('diary_')){ try{cloudCache[k.slice(6)]=JSON.parse(localStorage.getItem(k));}catch(e){} }
+            if(k&&k.startsWith('diary_')&&k!=='diary_backups'){ try{cloudCache[k.slice(6)]=JSON.parse(localStorage.getItem(k));}catch(e){} }
           }
           await fbDoc.set(cloudCache);
         }
-      }catch(e){ console.warn('cloud load failed',e); cloudCache={}; }
+        cloudReady=true; // 로딩 완료 → 저장 허용
+        autoBackup();    // 접속 시 자동 백업 스냅샷
+        startRealtimeSync(); // 실시간 동기화 시작
+      }catch(e){
+        console.warn('cloud load failed',e);
+        alert('클라우드에서 데이터를 불러오지 못했어요.\n인터넷 연결을 확인하고 새로고침해주세요.\n(안전을 위해 클라우드 저장은 잠시 중단됩니다)');
+        cloudCache={}; cloudReady=false; // 실패 시 저장 잠금 유지 → 덮어쓰기 방지
+      }
       renderAll();
     }else{
-      fbUser=null;fbDoc=null;cloudCache={};
+      fbUser=null;fbDoc=null;cloudCache={};cloudReady=false;
+      stopRealtimeSync();
       btn.textContent='Sign in';btn.onclick=fbLogin;
       renderAll();
     }
   });
+}
+
+/* ===== 실시간 동기화 (다른 기기에서 바꾸면 즉시 반영) ===== */
+let unsubSync=null;
+function startRealtimeSync(){
+  stopRealtimeSync();
+  if(!fbDoc)return;
+  unsubSync=fbDoc.onSnapshot(snap=>{
+    if(!snap.exists)return;
+    if(suppressSync)return;          // 내가 방금 쓴 건 무시
+    if(snap.metadata.hasPendingWrites)return; // 아직 서버 반영 전인 내 쓰기 무시
+    const data=snap.data()||{};
+    if(Object.keys(data).length===0)return; // 빈 데이터면 무시 (사고 방지)
+    cloudCache=data;
+    renderAll();
+  },err=>console.warn('sync error',err));
+}
+function stopRealtimeSync(){ if(unsubSync){ unsubSync(); unsubSync=null; } }
+
+/* ===== 백업 ===== */
+// 접속할 때마다 스냅샷 저장 (최근 5개 보관)
+function autoBackup(){
+  try{
+    if(Object.keys(cloudCache).length===0)return;
+    const backups=JSON.parse(localStorage.getItem('diary_backups')||'[]');
+    backups.unshift({ at:new Date().toISOString(), data:cloudCache });
+    localStorage.setItem('diary_backups', JSON.stringify(backups.slice(0,5)));
+  }catch(e){ console.warn('backup failed',e); }
+}
+// 파일로 내려받기
+function downloadBackup(){
+  const data = fbUser ? cloudCache : (()=>{ const o={};
+    for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i);
+      if(k&&k.startsWith('diary_')&&k!=='diary_backups'){ try{o[k.slice(6)]=JSON.parse(localStorage.getItem(k));}catch(e){} } }
+    return o; })();
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='my-diary-backup-'+localYmd()+'.json';
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+// 파일에서 복원
+function restoreBackup(){
+  if(!confirm('백업 파일에서 복원할까요?\n현재 데이터는 백업 내용으로 덮어써져요.'))return;
+  const inp=document.createElement('input'); inp.type='file'; inp.accept='.json,application/json';
+  inp.onchange=()=>{ const f=inp.files[0]; if(!f)return;
+    const r=new FileReader();
+    r.onload=e=>{
+      try{
+        const data=JSON.parse(e.target.result);
+        if(typeof data!=='object'||!data){ alert('올바른 백업 파일이 아니에요.'); return; }
+        // 로컬 저장
+        Object.entries(data).forEach(([k,v])=>{ try{localStorage.setItem('diary_'+k,JSON.stringify(v));}catch(e){} });
+        if(fbUser&&fbDoc){ cloudCache=data; cloudReady=true; fbDoc.set(data); }
+        alert('복원했어요! 화면을 새로고침할게요.');
+        location.reload();
+      }catch(err){ alert('복원 실패: 파일을 읽을 수 없어요.'); }
+    };
+    r.readAsText(f);
+  };
+  inp.click();
+}
+// 최근 자동 백업으로 되돌리기
+function showAutoBackups(){
+  let backups=[];
+  try{ backups=JSON.parse(localStorage.getItem('diary_backups')||'[]'); }catch(e){}
+  if(!backups.length){ alert('저장된 자동 백업이 없어요.'); return; }
+  const list=backups.map((b,i)=>`${i+1}. ${new Date(b.at).toLocaleString('ko-KR')} (${Object.keys(b.data).length}개 항목)`).join('\n');
+  const pick=prompt('되돌릴 백업 번호를 입력하세요:\n\n'+list);
+  const idx=parseInt(pick)-1;
+  if(isNaN(idx)||!backups[idx])return;
+  if(!confirm('이 백업으로 되돌릴까요? 현재 데이터는 덮어써져요.'))return;
+  const data=backups[idx].data;
+  Object.entries(data).forEach(([k,v])=>{ try{localStorage.setItem('diary_'+k,JSON.stringify(v));}catch(e){} });
+  if(fbUser&&fbDoc){ cloudCache=data; cloudReady=true; fbDoc.set(data); }
+  alert('되돌렸어요! 화면을 새로고침할게요.');
+  location.reload();
 }
 
 (function init(){
