@@ -2411,13 +2411,37 @@ function calClearDay(){
 const DOW_KR=['일','월','화','수','목','금','토'];
 function tdKey(ds){return 'todo_'+ds;}
 // 하루 데이터: { cats:[{id,name,collapsed,items:[{id,text,time,done,routineId?}]}] }
-function tdDefault(){return {cats:[{id:'c'+Date.now(),name:'',collapsed:false,items:[]}]};}
+function tdDefault(){
+  // 고정 분야 목록이 있으면 그걸로 시작 (날짜가 바뀌어도 분야 유지)
+  const fixed=DB.load('tdCats',null);
+  if(fixed&&fixed.length){
+    return {cats: fixed.map(name=>({id:'c'+Math.random().toString(36).slice(2),name,collapsed:false,items:[]}))};
+  }
+  return {cats:[{id:'c'+Date.now(),name:'',collapsed:false,items:[]}]};
+}
+// 고정 분야 목록 관리
+function tdFixedCats(){ return DB.load('tdCats',[]); }
+function tdSaveFixedCats(list){ DB.save('tdCats', list); }
+// 현재 날짜의 분야 이름들을 고정 목록에 반영
+function syncFixedCats(d){
+  const names=d.cats.map(c=>(c.name||'').trim()).filter(n=>n);
+  const cur=tdFixedCats();
+  let changed=false;
+  names.forEach(n=>{ if(!cur.includes(n)){ cur.push(n); changed=true; } });
+  if(changed) tdSaveFixedCats(cur);
+}
 function tdData(ds){return DB.load(tdKey(ds),null);}
 // 조작용: 저장된 데이터가 없으면 기본 구조를 만들어서 반환 (null 반환 안 함)
 function tdEdit(ds){
   let d=DB.load(tdKey(ds),null);
   if(!d) d=tdDefault();
   if(!d.cats||!d.cats.length) d.cats=[{id:'c'+Date.now(),name:'',collapsed:false,items:[]}];
+  // 고정 분야 반영 (없는 분야는 추가)
+  tdFixedCats().forEach(name=>{
+    if(!d.cats.some(c=>(c.name||'').trim()===name)){
+      d.cats.push({id:'c'+Math.random().toString(36).slice(2),name,collapsed:false,items:[]});
+    }
+  });
   return d;
 }
 function curDs(){return document.getElementById('tdDate').value;}
@@ -2427,6 +2451,13 @@ function ensureDay(ds){
   const isNew = !d;              // 저장된 데이터가 아예 없는 날인지
   if(!d){ d=tdDefault(); }
   let changed=false;             // 루틴이 실제로 추가됐는지
+  // 고정 분야가 이 날짜에 없으면 추가 (분야는 날짜와 상관없이 유지)
+  tdFixedCats().forEach(name=>{
+    if(!d.cats.some(c=>(c.name||'').trim()===name)){
+      d.cats.push({id:'c'+Math.random().toString(36).slice(2),name,collapsed:false,items:[]});
+      changed=true;
+    }
+  });
   // 루틴 주입 (해당 요일에 맞는 루틴이 아직 없으면, 지정한 분야에 추가)
   const dow=new Date(ds).getDay();
   const routines=loadRoutines().filter(r=>r.dows&&r.dows.includes(dow));
@@ -2514,8 +2545,27 @@ function renderCats(ds,d){
 }
 
 function addCat(){const ds=curDs();const d=ensureDay(ds);d.cats.push({id:'c'+Date.now(),name:'',collapsed:false,items:[]});saveDay(ds,d);renderCats(ds,d);}
-function delCat(ds,ci){const d=tdEdit(ds);d.cats.splice(ci,1);saveDay(ds,d);renderCats(ds,d);}
-function setCatName(ds,ci,v){const d=tdEdit(ds);if(!d.cats[ci])return;d.cats[ci].name=v;saveDay(ds,d);}
+function delCat(ds,ci){
+  const d=tdEdit(ds); const name=(d.cats[ci]&&d.cats[ci].name||'').trim();
+  d.cats.splice(ci,1); saveDay(ds,d);
+  // 고정 분야 목록에서도 제거할지 확인
+  if(name && tdFixedCats().includes(name)){
+    if(confirm('"'+name+'" 분야를 앞으로도 안 쓸까요?\n(확인=모든 날짜에서 제거, 취소=오늘만 제거)')){
+      tdSaveFixedCats(tdFixedCats().filter(n=>n!==name));
+    }
+  }
+  renderCats(ds,d);
+}
+function setCatName(ds,ci,v){
+  const d=tdEdit(ds); if(!d.cats[ci])return;
+  const old=(d.cats[ci].name||'').trim();
+  d.cats[ci].name=v; saveDay(ds,d);
+  // 고정 분야 목록 갱신 (이름 바뀌면 교체, 새 이름이면 추가)
+  const nv=(v||'').trim(); let list=tdFixedCats();
+  if(old && list.includes(old)){ list=list.map(n=>n===old?nv:n).filter(n=>n); }
+  else if(nv && !list.includes(nv)){ list.push(nv); }
+  tdSaveFixedCats(list.filter((n,i,a)=>n&&a.indexOf(n)===i));
+}
 function toggleCat(ds,ci){const d=tdEdit(ds);if(!d.cats[ci])return;d.cats[ci].collapsed=!d.cats[ci].collapsed;saveDay(ds,d);renderCats(ds,d);}
 function addItem(ds,ci){const d=tdEdit(ds);if(!d.cats[ci])return;d.cats[ci].items.push({id:'i'+Math.random().toString(36).slice(2),text:'',time:'',done:false});saveDay(ds,d);renderCats(ds,d);}
 function delItem(ds,ci,id){const d=tdEdit(ds);const c=d.cats[ci];if(!c)return;c.items=c.items.filter(it=>it.id!==id);saveDay(ds,d);renderCats(ds,d);}
@@ -2564,14 +2614,16 @@ function nextDay(ds){const d=new Date(ds);d.setDate(d.getDate()+1);return localY
 function confirmPush(){
   const target=document.getElementById('pushDate').value;if(!target||!pushCtx){closePush();return;}
   const {mode,ds,ci,id}=pushCtx;
-  const src=tdData(ds);if(!src){closePush();return;}
-  const dest=ensureDay(target);
+  const src=tdEdit(ds);   // 원본 (없으면 기본 구조)
+  const dest=tdEdit(target); // 대상 (기존 데이터 보존! ensureDay는 루틴을 또 넣어서 부적합)
   const destCat=(name)=>{let c=dest.cats.find(x=>x.name===name);if(!c){c={id:'c'+Math.random().toString(36).slice(2),name:name||'',collapsed:false,items:[]};dest.cats.push(c);}return c;};
-  const moveItem=(cat,it)=>{destCat(cat.name).items.push({...it,done:false,routineId:undefined});};
+  const moveItem=(cat,it)=>{destCat(cat.name).items.push({...it,id:'i'+Math.random().toString(36).slice(2),done:false,routineId:undefined});};
   if(mode==='one'){
-    const c=src.cats[ci];const it=c.items.find(x=>x.id===id);if(it){moveItem(c,it);c.items=c.items.filter(x=>x.id!==id);}
+    const c=src.cats[ci];if(!c){closePush();return;}
+    const it=c.items.find(x=>x.id===id);if(it){moveItem(c,it);c.items=c.items.filter(x=>x.id!==id);}
   }else if(mode==='cat'){
-    const c=src.cats[ci];const keep=[];c.items.forEach(it=>{if(!it.done)moveItem(c,it);else keep.push(it);});c.items=keep;
+    const c=src.cats[ci];if(!c){closePush();return;}
+    const keep=[];c.items.forEach(it=>{if(!it.done)moveItem(c,it);else keep.push(it);});c.items=keep;
   }else if(mode==='day'){
     src.cats.forEach(c=>{const keep=[];c.items.forEach(it=>{if(!it.done)moveItem(c,it);else keep.push(it);});c.items=keep;});
   }
