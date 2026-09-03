@@ -838,11 +838,13 @@ body:not(.mobile) #lnListBtn{display:none;}
 <div class="modal" id="backupModal">
   <div class="box">
     <h3><span class="naru" style="width:20px;height:20px"></span> 백업 &amp; 복원</h3>
+    <div id="storageInfo" style="font-size:14px;color:#555;background:var(--line-soft);border-radius:10px;padding:8px 10px;margin-bottom:10px"></div>
     <div style="font-size:14px;color:#777;margin-bottom:10px">데이터가 날아가지 않게 가끔 백업해두세요!</div>
     <div style="display:flex;flex-direction:column;gap:8px">
       <button class="jelly sm" onclick="downloadBackup()">⬇ 백업 파일 내려받기</button>
       <button class="jelly sm" onclick="restoreBackup()">⬆ 백업 파일에서 복원</button>
       <button class="jelly sm" onclick="showAutoBackups()">↺ 자동 백업으로 되돌리기</button>
+      <button class="jelly sm" onclick="cleanupStorage()">🧹 용량 정리 (저장 안 될 때)</button>
     </div>
     <div style="font-size:12px;color:#999;margin-top:10px">자동 백업은 접속할 때마다 최근 5개까지 저장돼요.</div>
     <div class="row"><button class="jelly sm" onclick="document.getElementById('backupModal').classList.remove('show')">닫기</button></div>
@@ -1087,11 +1089,36 @@ function scheduleCloudSave(){
       console.warn('빈 데이터 저장 차단');
       return;
     }
+    // 용량 체크 (Firestore 문서 한도 1MB) — 넘으면 저장이 통째로 실패함
+    let size=0;
+    try{ size=new Blob([JSON.stringify(cloudCache)]).size; }catch(e){}
+    if(size > 950000){
+      showSaveError('저장 용량이 가득 찼어요! ('+(size/1024/1024).toFixed(2)+'MB / 1MB)\n\n' +
+        '강의노트 필기·사진이 너무 많아요.\n⚙ → 💾 백업에서 "용량 정리"를 해주세요.\n\n' +
+        '지금은 이 기기에만 저장되고 있어요.');
+      return;
+    }
     suppressSync=true; // 내가 쓴 건 실시간 수신에서 무시
     fbDoc.set(cloudCache)
-      .catch(err=>console.warn('cloud save failed',err))
+      .catch(err=>{
+        console.warn('cloud save failed',err);
+        showSaveError('클라우드 저장에 실패했어요.\n\n오류: '+(err&&err.message?err.message:err)+
+          '\n\n지금은 이 기기에만 저장되고 있어요.');
+      })
       .finally(()=>{ setTimeout(()=>{suppressSync=false;},300); });
   },600);
+}
+// 저장 오류를 화면에 알림 (같은 오류 반복 알림은 1분에 한 번만)
+let lastSaveErrAt=0;
+function showSaveError(msg){
+  const now=Date.now();
+  if(now-lastSaveErrAt < 60000) { console.warn(msg); return; }
+  lastSaveErrAt=now;
+  alert('⚠ ' + msg);
+}
+// 현재 클라우드 데이터 용량 확인
+function cloudSize(){
+  try{ return new Blob([JSON.stringify(cloudCache)]).size; }catch(e){ return 0; }
 }
 
 const FONTS=[
@@ -1112,7 +1139,53 @@ function setFont(css){document.documentElement.style.setProperty('--hand-font',c
   document.getElementById('fontPanel').classList.remove('show');}
 function toggleFonts(){document.getElementById('fontPanel').classList.toggle('show');}
 function toggleTopMenu(){document.getElementById('topMenu').classList.toggle('show');}
-function openBackupMenu(){document.getElementById('backupModal').classList.add('show');}
+function openBackupMenu(){
+  // 용량 표시 갱신
+  const el=document.getElementById('storageInfo');
+  if(el){
+    if(fbUser){
+      const s=cloudSize();
+      const pct=Math.round(s/1048576*100);
+      el.innerHTML='클라우드 사용량: <b>'+(s/1024/1024).toFixed(2)+'MB</b> / 1MB ('+pct+'%)'+
+        (pct>=90?'<br><span style="color:#c00">⚠ 가득 찼어요! 정리가 필요해요</span>':'');
+    }else{
+      el.textContent='로그인하면 클라우드 사용량을 볼 수 있어요.';
+    }
+  }
+  document.getElementById('backupModal').classList.add('show');
+}
+// 무엇이 용량을 차지하는지 보여주고 정리
+function cleanupStorage(){
+  if(!fbUser){ alert('로그인 후 사용할 수 있어요.'); return; }
+  // 항목별 용량 계산
+  const sizes=[];
+  Object.entries(cloudCache).forEach(([k,v])=>{
+    let s=0; try{ s=new Blob([JSON.stringify(v)]).size; }catch(e){}
+    sizes.push({key:k,size:s});
+  });
+  sizes.sort((a,b)=>b.size-a.size);
+  const top=sizes.slice(0,15);
+  const total=sizes.reduce((a,b)=>a+b.size,0);
+  let msg='전체 '+(total/1024/1024).toFixed(2)+'MB\n\n용량이 큰 항목 (상위 15개):\n\n';
+  top.forEach((t,i)=>{
+    let label=t.key;
+    if(label.startsWith('lnNote_')) label='강의노트 '+label.replace('lnNote_','');
+    else if(label.startsWith('diary_')) label='일기 '+label.replace('diary_','');
+    else if(label.startsWith('todo_')) label='할일 '+label.replace('todo_','');
+    msg+=(i+1)+'. '+label+' — '+(t.size/1024).toFixed(0)+'KB\n';
+  });
+  msg+='\n강의노트 필기·사진이 대부분 용량을 차지해요.\n삭제할 항목의 번호를 입력하세요 (여러 개는 쉼표로, 예: 1,2,3)';
+  const pick=prompt(msg);
+  if(!pick)return;
+  const idxs=pick.split(',').map(s=>parseInt(s.trim())-1).filter(i=>!isNaN(i)&&top[i]);
+  if(!idxs.length)return;
+  const names=idxs.map(i=>top[i].key).join('\n');
+  if(!confirm('아래 항목을 삭제할까요? (되돌릴 수 없어요)\n\n'+names))return;
+  idxs.forEach(i=>{ delete cloudCache[top[i].key]; try{localStorage.removeItem('diary_'+top[i].key);}catch(e){} });
+  scheduleCloudSave();
+  alert('삭제했어요! 용량이 확보되면 저장이 다시 작동해요.');
+  renderAll();
+}
 function toggleLtMenu(){document.getElementById('ltMenu').classList.toggle('show');}
 
 function go(sec){
@@ -2340,6 +2413,13 @@ function tdKey(ds){return 'todo_'+ds;}
 // 하루 데이터: { cats:[{id,name,collapsed,items:[{id,text,time,done,routineId?}]}] }
 function tdDefault(){return {cats:[{id:'c'+Date.now(),name:'',collapsed:false,items:[]}]};}
 function tdData(ds){return DB.load(tdKey(ds),null);}
+// 조작용: 저장된 데이터가 없으면 기본 구조를 만들어서 반환 (null 반환 안 함)
+function tdEdit(ds){
+  let d=DB.load(tdKey(ds),null);
+  if(!d) d=tdDefault();
+  if(!d.cats||!d.cats.length) d.cats=[{id:'c'+Date.now(),name:'',collapsed:false,items:[]}];
+  return d;
+}
 function curDs(){return document.getElementById('tdDate').value;}
 
 function ensureDay(ds){
@@ -2434,17 +2514,17 @@ function renderCats(ds,d){
 }
 
 function addCat(){const ds=curDs();const d=ensureDay(ds);d.cats.push({id:'c'+Date.now(),name:'',collapsed:false,items:[]});saveDay(ds,d);renderCats(ds,d);}
-function delCat(ds,ci){const d=tdData(ds);if(!d)return;d.cats.splice(ci,1);saveDay(ds,d);renderCats(ds,d);}
-function setCatName(ds,ci,v){const d=tdData(ds);if(!d)return;d.cats[ci].name=v;saveDay(ds,d);}
-function toggleCat(ds,ci){const d=tdData(ds);if(!d)return;d.cats[ci].collapsed=!d.cats[ci].collapsed;saveDay(ds,d);renderCats(ds,d);}
-function addItem(ds,ci){const d=tdData(ds);if(!d)return;d.cats[ci].items.push({id:'i'+Math.random().toString(36).slice(2),text:'',time:'',done:false});saveDay(ds,d);renderCats(ds,d);}
-function delItem(ds,ci,id){const d=tdData(ds);if(!d)return;const c=d.cats[ci];c.items=c.items.filter(it=>it.id!==id);saveDay(ds,d);renderCats(ds,d);}
-function toggleItem(ds,ci,id){const d=tdData(ds);if(!d)return;const it=d.cats[ci].items.find(x=>x.id===id);if(it)it.done=!it.done;saveDay(ds,d);renderCats(ds,d);}
-function setItemText(ds,ci,id,v){const d=tdData(ds);if(!d)return;const it=d.cats[ci].items.find(x=>x.id===id);if(it)it.text=v;saveDay(ds,d);}
-function setItemTime(ds,ci,id,v){const d=tdData(ds);if(!d)return;const it=d.cats[ci].items.find(x=>x.id===id);
+function delCat(ds,ci){const d=tdEdit(ds);d.cats.splice(ci,1);saveDay(ds,d);renderCats(ds,d);}
+function setCatName(ds,ci,v){const d=tdEdit(ds);if(!d.cats[ci])return;d.cats[ci].name=v;saveDay(ds,d);}
+function toggleCat(ds,ci){const d=tdEdit(ds);if(!d.cats[ci])return;d.cats[ci].collapsed=!d.cats[ci].collapsed;saveDay(ds,d);renderCats(ds,d);}
+function addItem(ds,ci){const d=tdEdit(ds);if(!d.cats[ci])return;d.cats[ci].items.push({id:'i'+Math.random().toString(36).slice(2),text:'',time:'',done:false});saveDay(ds,d);renderCats(ds,d);}
+function delItem(ds,ci,id){const d=tdEdit(ds);const c=d.cats[ci];if(!c)return;c.items=c.items.filter(it=>it.id!==id);saveDay(ds,d);renderCats(ds,d);}
+function toggleItem(ds,ci,id){const d=tdEdit(ds);if(!d.cats[ci])return;const it=d.cats[ci].items.find(x=>x.id===id);if(it)it.done=!it.done;saveDay(ds,d);renderCats(ds,d);}
+function setItemText(ds,ci,id,v){const d=tdEdit(ds);if(!d.cats[ci])return;const it=d.cats[ci].items.find(x=>x.id===id);if(it)it.text=v;saveDay(ds,d);}
+function setItemTime(ds,ci,id,v){const d=tdEdit(ds);if(!d.cats[ci])return;const it=d.cats[ci].items.find(x=>x.id===id);
   if(it){it.time=v; if(!v)it._showTime=false;}saveDay(ds,d);renderCats(ds,d);}
 // 시계 버튼 → 시간 입력칸 나타나게
-function showItemTime(ds,ci,id){const d=tdData(ds);if(!d)return;const it=d.cats[ci].items.find(x=>x.id===id);
+function showItemTime(ds,ci,id){const d=tdEdit(ds);if(!d.cats[ci])return;const it=d.cats[ci].items.find(x=>x.id===id);
   if(it)it._showTime=true;renderCats(ds,d);
   // 방금 나타난 시간칸에 자동 포커스
   setTimeout(()=>{const row=document.querySelector(`#tdCats .td-item[data-id="${id}"] .td-time`);if(row){row.focus();if(row.showPicker)try{row.showPicker();}catch(e){}}},30);}
@@ -2461,7 +2541,7 @@ function setupDrag(ds){
     el.addEventListener('drop',e=>{e.preventDefault();el.classList.remove('dragover');
       if(!dragEl||el===dragEl)return;
       if(el.dataset.ci!==dragEl.dataset.ci)return;
-      const ci=+el.dataset.ci;const d=tdData(ds);const arr=d.cats[ci].items;
+      const ci=+el.dataset.ci;const d=tdEdit(ds);if(!d.cats[ci])return;const arr=d.cats[ci].items;
       const from=arr.findIndex(x=>x.id===dragEl.dataset.id);
       const to=arr.findIndex(x=>x.id===el.dataset.id);
       if(from<0||to<0)return;
