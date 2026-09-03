@@ -1055,6 +1055,7 @@ let cloudCache={};      // 클라우드에서 받아온 전체 데이터 캐시
 let saveTimer=null;     // 저장 디바운스
 let cloudReady=false;   // 클라우드 로딩 완료 여부 (완료 전엔 저장 금지!)
 let suppressSync=false; // 실시간 수신 중 재저장 방지
+let authChecked=false;  // 로그인 상태 확인 완료 여부 (확인 전엔 저장 전면 금지)
 
 const DB={
   load(key,def){
@@ -1062,11 +1063,12 @@ const DB={
     try{const v=localStorage.getItem('diary_'+key);return v==null?def:JSON.parse(v);}catch(e){return def;}
   },
   save(key,val){
+    // ⚠ 로그인 상태 확인 전에는 저장 금지 (낡은 로컬 데이터가 클라우드를 덮어쓰는 사고 방지)
+    if(!authChecked){ console.warn('로그인 확인 전이라 저장 보류:',key); return; }
     // 로컬은 항상 저장 (오프라인 안전)
     try{localStorage.setItem('diary_'+key,JSON.stringify(val));}catch(e){}
     if(fbUser){
       if(!cloudReady){
-        // 아직 클라우드를 다 못 불러온 상태 → 클라우드 저장 보류 (덮어쓰기 사고 방지)
         console.warn('클라우드 로딩 중이라 저장 보류:',key);
         flashSaved(); return;
       }
@@ -3029,11 +3031,20 @@ function dyBaseballView(bb){
 }
 
 /* ===================== 초기화 ===================== */
+let firstRenderDone=false;
 function renderAll(){
   // 데이터 소스가 바뀌었을 때 모든 화면 다시 그리기
   buildFontList();loadCover();
   const savedFont=DB.load('font',FONTS[0].css);
   document.documentElement.style.setProperty('--hand-font',savedFont);
+
+  // 날짜 입력칸은 처음 한 번만 저장된 값으로 세팅 (이후엔 사용자가 보던 날짜 유지)
+  if(!firstRenderDone){
+    const plEl=document.getElementById('plDate'); if(plEl) plEl.value=DB.load('plLastDate',localYmd());
+    const tdEl=document.getElementById('tdDate'); if(tdEl) tdEl.value=DB.load('tdLastDate',localYmd());
+    const dyEl=document.getElementById('dyDate'); if(dyEl) dyEl.value=DB.load('dyLastDate',localYmd());
+  }
+
   plLoad();
   const cy=DB.load('calYm',null);const n=new Date();
   calYear=cy?cy.y:n.getFullYear();calMonth=cy?cy.m:n.getMonth();
@@ -3044,6 +3055,12 @@ function renderAll(){
   tt2Render();
   goalRender();
   lnRender();
+
+  if(!firstRenderDone){
+    go(DB.load('lastSec','calendar'));
+    ltGo(DB.load('ltLastSec','timetable'));
+    firstRenderDone=true;
+  }
 }
 
 /* ===== Firebase 로그인 ===== */
@@ -3062,8 +3079,12 @@ function setupAuth(){
   if(!firebaseReady){
     btn.textContent='Sign in';
     btn.onclick=()=>alert('구글 로그인을 쓰려면 이 파일을 웹에 올리거나(예: GitHub Pages) 로컬 서버로 열어야 해요.\n\n그냥 파일을 더블클릭해서 열면(file://) 보안상 로그인 팝업이 막혀요.\n\n지금도 로그인 없이 이 기기에는 저장돼요!');
+    authChecked=true; // Firebase 없음 = 로컬 전용 모드, 저장 허용
+    renderAll();
     return;
   }
+  // 안전장치: 인증 확인이 8초 안에 안 끝나면 로컬 모드로 진행 (앱이 멈추지 않게)
+  setTimeout(()=>{ if(!authChecked){ console.warn('인증 확인 지연 → 로컬 모드'); authChecked=true; renderAll(); } }, 8000);
   firebase.auth().onAuthStateChanged(async user=>{
     if(user){
       fbUser=user;
@@ -3094,17 +3115,17 @@ function setupAuth(){
           }
           await fbDoc.set(cloudCache);
         }
-        cloudReady=true; // 로딩 완료 → 저장 허용
+        cloudReady=true; authChecked=true; // 로딩 완료 → 저장 허용
         autoBackup();    // 접속 시 자동 백업 스냅샷
         startRealtimeSync(); // 실시간 동기화 시작
       }catch(e){
         console.warn('cloud load failed',e);
         alert('클라우드에서 데이터를 불러오지 못했어요.\n인터넷 연결을 확인하고 새로고침해주세요.\n(안전을 위해 클라우드 저장은 잠시 중단됩니다)');
-        cloudCache={}; cloudReady=false; // 실패 시 저장 잠금 유지 → 덮어쓰기 방지
+        cloudCache={}; cloudReady=false; authChecked=true; // 클라우드 저장은 계속 잠금 → 덮어쓰기 방지
       }
       renderAll();
     }else{
-      fbUser=null;fbDoc=null;cloudCache={};cloudReady=false;
+      fbUser=null;fbDoc=null;cloudCache={};cloudReady=false;authChecked=true; // 비로그인=로컬 모드, 저장 허용
       stopRealtimeSync();
       btn.textContent='Sign in';btn.onclick=fbLogin;
       renderAll();
@@ -3194,30 +3215,14 @@ function showAutoBackups(){
   document.body.classList.toggle('mobile',window.innerWidth<760);
   window.addEventListener('resize',()=>document.body.classList.toggle('mobile',window.innerWidth<760));
   paintNaru();buildBg();
-  const savedFont=DB.load('font',FONTS[0].css);
-  document.documentElement.style.setProperty('--hand-font',savedFont);
-  buildFontList();loadCover();buildTimetable();
 
-  document.getElementById('plDate').value=DB.load('plLastDate',localYmd());
-  plLoad();
+  // ⚠ 중요: 로그인 확인(setupAuth)이 끝나기 전에 데이터를 읽고 저장하면
+  // 낡은 localStorage 데이터가 클라우드를 덮어쓰는 사고가 남.
+  // 따라서 화면 그리기는 setupAuth 안에서 renderAll()로 처리하고, 여기선 최소한만 준비.
+  buildDow();
+  buildTimetable();
 
-  document.getElementById('tdDate').value=DB.load('tdLastDate',localYmd());
-  tdLoad();
-
-  const cy=DB.load('calYm',null);const n=new Date();
-  calYear=cy?cy.y:n.getFullYear();calMonth=cy?cy.m:n.getMonth();
-  buildDow();renderCal();
-
-  mmRender();
-
-  document.getElementById('dyDate').value=DB.load('dyLastDate',localYmd());
-  dyRender();
-
-  go(DB.load('lastSec','calendar')); // 노트 탭 초기 상태 설정 (화면엔 아직 안 보임)
-  ltGo(DB.load('ltLastSec','timetable')); // 랩탑 탭 초기 상태
-  // 첫 진입은 책상 화면 (opened/note-open/laptop-open 아무것도 없음)
-
-  setupAuth();
+  setupAuth(); // 로그인 상태 확인 → 완료되면 renderAll()이 호출되어 화면이 그려짐
 
   // 루틴 알림: 1분마다 체크 (앱이 열려있거나 설치 시 SW가 살아있는 동안)
   checkRoutineAlarms();
