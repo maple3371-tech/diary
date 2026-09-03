@@ -2342,7 +2342,9 @@ function curDs(){return document.getElementById('tdDate').value;}
 
 function ensureDay(ds){
   let d=tdData(ds);
+  const isNew = !d;              // 저장된 데이터가 아예 없는 날인지
   if(!d){ d=tdDefault(); }
+  let changed=false;             // 루틴이 실제로 추가됐는지
   // 루틴 주입 (해당 요일에 맞는 루틴이 아직 없으면, 지정한 분야에 추가)
   const dow=new Date(ds).getDay();
   const routines=loadRoutines().filter(r=>r.dows&&r.dows.includes(dow));
@@ -2350,19 +2352,29 @@ function ensureDay(ds){
     const exists=d.cats.some(c=>c.items.some(it=>it.routineId===r.id));
     if(!exists){
       const catName=r.cat||'루틴';
-      // 같은 이름 분야 찾기, 없으면 생성
       let cat=d.cats.find(c=>c.name===catName);
       if(!cat){ cat={id:'c'+Math.random().toString(36).slice(2),name:catName,collapsed:false,items:[]}; d.cats.push(cat); }
       cat.items.push({id:'i'+Math.random().toString(36).slice(2),text:r.name,time:r.time||'',done:false,routineId:r.id});
+      changed=true;
     }
   });
+  d._needSave = changed;         // 루틴이 추가됐을 때만 저장 필요
+  d._isNew = isNew;
   return d;
 }
-function saveDay(ds,d){DB.save(tdKey(ds),d);}
+function saveDay(ds,d){
+  // 저장 전 임시 플래그 제거
+  const copy={...d}; delete copy._needSave; delete copy._isNew;
+  DB.save(tdKey(ds),copy);
+}
 
 function tdLoad(){
   const ds=curDs();
-  const d=ensureDay(ds); saveDay(ds,d);
+  const d=ensureDay(ds);
+  // 화면을 열기만 했을 땐 저장하지 않음! (빈 데이터가 클라우드를 덮어쓰는 사고 방지)
+  // 루틴이 실제로 새로 추가된 경우에만 저장
+  if(d._needSave && !d._isNew){ saveDay(ds,d); }
+  else if(d._needSave && d._isNew){ saveDay(ds,d); } // 새 날에 루틴이 생긴 경우도 저장
   const dt=new Date(ds);
   document.getElementById('tdDayLabel').textContent=`${ds} (${DOW_KR[dt.getDay()]})`;
   DB.save('tdLastDate',ds);
